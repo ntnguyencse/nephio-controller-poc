@@ -358,59 +358,75 @@ func Command(name string, arg ...string) *exec.Cmd {
 	return cmd
 }
 
-// func generateMachineControlPlaneHealthCheck(clusterName string) string {
-// 	return fmt.Sprintf("apiVersion: cluster.x-k8s.io/v1beta1
-// 	kind: MachineHealthCheck
-// 	metadata:
-// 	  name: %s-unhealthy-controlplane
-// 	spec:
-// 	  clusterName: %s
-// 	  maxUnhealthy: 100%
-// 	  selector:
-// 		matchLabels:
-// 		  cluster.x-k8s.io/control-plane: ""
-// 	  unhealthyConditions:
-// 		- type: Ready
-// 		  status: Unknown
-// 		  timeout: 1s
-// 	", clusterName, clusterName)
-// }
+func generateMachineControlPlaneHealthCheck(clusterName string) string {
+	return fmt.Sprintf("apiVersion: cluster.x-k8s.io/v1beta1
+	kind: MachineHealthCheck
+	metadata:
+	  name: %s-unhealthy-controlplane
+	spec:
+	  clusterName: %s
+	  maxUnhealthy: 100%
+	  selector:
+		matchLabels:
+		  cluster.x-k8s.io/control-plane: ""
+	  unhealthyConditions:
+		- type: Ready
+		  status: Unknown
+		  timeout: 1s
+	", clusterName, clusterName)
+}
 
-// func generateMachineWorkerHealthCheck(clusterName string) string {
-// 	return fmt.Sprintf("apiVersion: cluster.x-k8s.io/v1beta1
-// 	kind: MachineHealthCheck
-// 	metadata:
-// 	  name: %s-unhealthy
-// 	spec:
-// 	  clusterName: %s
-// 	  maxUnhealthy: 100%
-// 	  nodeStartupTimeout: 10m
-// 	  selector:
-// 		matchLabels:
-// 		  cluster.x-k8s.io/deployment-name: %s-md-0
-// 	  unhealthyConditions:
-// 		- type: Ready
-// 		  status: Unknown
-// 		  timeout: 1s
-// 	", clusterName, clusterName, cluclusterName)
-// }
-// func createCNIFlannelPlugin() string {
+func generateMachineWorkerHealthCheck(clusterName string) string {
+	return fmt.Sprintf("apiVersion: cluster.x-k8s.io/v1beta1
+	kind: MachineHealthCheck
+	metadata:
+	  name: %s-unhealthy
+	spec:
+	  clusterName: %s
+	  maxUnhealthy: 100%
+	  nodeStartupTimeout: 10m
+	  selector:
+		matchLabels:
+		  cluster.x-k8s.io/deployment-name: %s-md-0
+	  unhealthyConditions:
+		- type: Ready
+		  status: Unknown
+		  timeout: 1s
+	", clusterName, clusterName, cluclusterName)
+}
+func createCNIFlannelPlugin() string {
 
-// 	return string("apiVersion: addons.cluster.x-k8s.io/v1alpha3
-// 	kind: ClusterResourceSet
-// 	metadata:
-// 	  name: cni-flannel
-// 	spec:
-// 	  clusterSelector:
-// 		matchLabels:
-// 		  cni: flannel
-// 	  resources:
-// 	  - kind: ConfigMap
-// 		name: flannel-configmap")
-// }
+	return string("apiVersion: addons.cluster.x-k8s.io/v1alpha3
+	kind: ClusterResourceSet
+	metadata:
+	  name: cni-flannel
+	spec:
+	  clusterSelector:
+		matchLabels:
+		  cni: flannel
+	  resources:
+	  - kind: ConfigMap
+		name: flannel-configmap")
+}
 
-// func addCNILabelToYamlFile(yamlFile string) string {
-// 	labelCNI := "\n  labels:\n    cni: flannel\n"
-// 	strings.Index
-// 	return finalYamlFile
-// }
+func addCNILabelToYamlFile(yamlFile string) string {
+	labelCNI := "\n  labels:\n    cni: flannel\n"
+	strings.Index
+	return finalYamlFile
+}
+func saveContentToBashFile(content string, fileName string) string {
+	// var fileName string
+	tempFolder := createTempFolder(fileName)
+	// fmt.Println("Create  temp folder", tempFolder)
+	templateClusterFile := filepath.Join(tempFolder, fileName)
+	// fmt.Println("Create  temp file", templateClusterFile)
+	err = os.WriteFile(templateClusterFile, stdout, 0777)
+	fmt.Println("Write  bash file", templateClusterFile)
+	if err != nil {
+		fmt.Println(err.Error())
+		log.Fatal(err)
+		return "error", false
+	}
+
+	return templateClusterFile, true
+}
