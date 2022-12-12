@@ -215,6 +215,7 @@ func main() {
 		w.Write([]byte(string(stdout)))
 	})
 
+	// Create New cluster in OPENSTACK through call clusterASPI
 	r.Post("/createNewCluster", func(w http.ResponseWriter, r *http.Request) {
 
 		// defer r.Body.Close()
@@ -248,7 +249,8 @@ func main() {
 
 			if err != nil {
 				fmt.Println("Error applying cluster occurred")
-				fmt.Println(err.Error())
+				// Print Error and details of error happend
+				fmt.Println(fmt.Sprint(err) + ": " + stderr.String())
 				// log.Fatal(err)
 			}
 
