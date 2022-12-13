@@ -215,6 +215,7 @@ func main() {
 		w.Write([]byte(string(stdout)))
 	})
 
+	// Create New cluster in OPENSTACK through call clusterASPI
 	r.Post("/createNewCluster", func(w http.ResponseWriter, r *http.Request) {
 
 		// defer r.Body.Close()
@@ -248,7 +249,8 @@ func main() {
 
 			if err != nil {
 				fmt.Println("Error applying cluster occurred")
-				fmt.Println(err.Error())
+				// Print Error and details of error happend
+				fmt.Println(fmt.Sprint(err) + ": " + string(stdout1))
 				// log.Fatal(err)
 			}
 
@@ -256,34 +258,34 @@ func main() {
 			listYamlFileClusterAPI = append(listYamlFileClusterAPI, clusterYamlFile)
 		}
 
+		w.Write([]byte(string("Creating cluster: ") + clusterConfig.Name))
+	})
+	// CURL POST Request Example
+	// curl -X POST --data-binary @./test.sh http://127.0.0.1:3333/runBashScript
+	r.Post("/runBashScript", func(w http.ResponseWriter, r *http.Request) {
+
+		fmt.Println("Received runBashScript Request")
+		httpPostBody, err := ioutil.ReadAll(r.Body) //<--- here!
+		fmt.Println(string(httpPostBody))
+
+		// Save content to file
+		filePath := saveContentToBashFile(httpPostBody, "bash.sh")
+		fmt.Println("Print bash file path: ", filePath)
+		cmd := exec.Command("/bin/sh", filePath)
+		// Run the bash file
+		fmt.Println("Print command: ", cmd.Path, cmd.Args, cmd.Env)
+		stdout1, err := cmd.Output()
+
 		// prg := "echo " + httpPostBody
 		// arg := " | kubectl apply -f -"
 		// cmd := exec.Command(prg, arg)
 		// stdout, err := cmd.Output()
 
-		// if err != nil {
-		// 	fmt.Println(err.Error())
-		// 	log.Fatal(err)
-		// 	return
-		// }
-		w.Write([]byte(string("Creating cluster: ") + clusterConfig.Name))
-	})
-
-	r.Post("/generateNewCluster", func(w http.ResponseWriter, r *http.Request) {
-
-		var httpPostBody string = string("Test")
-
-		prg := "echo " + httpPostBody
-		arg := " | kubectl apply -f -"
-		cmd := exec.Command(prg, arg)
-		stdout, err := cmd.Output()
-
 		if err != nil {
-			fmt.Println(err.Error())
-			log.Fatal(err)
+			fmt.Println(fmt.Sprint(err) + ": " + string(stdout1))
 			return
 		}
-		w.Write([]byte(string(stdout)))
+		w.Write([]byte(string(stdout1)))
 	})
 	fmt.Println("Start Server at port", serverPort)
 	http.ListenAndServe(serverPort, r)
@@ -336,7 +338,7 @@ func generateClusterYamlFile(record ClusterRecord) (string, bool) {
 	fmt.Println("Write  temp file", templateClusterFile)
 	if err != nil {
 		fmt.Println(err.Error())
-		log.Fatal(err)
+		// log.Fatal(err)
 		return "error", false
 	}
 
@@ -358,59 +360,84 @@ func Command(name string, arg ...string) *exec.Cmd {
 	return cmd
 }
 
-// func generateMachineControlPlaneHealthCheck(clusterName string) string {
-// 	return fmt.Sprintf("apiVersion: cluster.x-k8s.io/v1beta1
-// 	kind: MachineHealthCheck
-// 	metadata:
-// 	  name: %s-unhealthy-controlplane
-// 	spec:
-// 	  clusterName: %s
-// 	  maxUnhealthy: 100%
-// 	  selector:
-// 		matchLabels:
-// 		  cluster.x-k8s.io/control-plane: ""
-// 	  unhealthyConditions:
-// 		- type: Ready
-// 		  status: Unknown
-// 		  timeout: 1s
-// 	", clusterName, clusterName)
-// }
+func generateMachineControlPlaneHealthCheck(clusterName string) string {
+	return fmt.Sprintf(`apiVersion: cluster.x-k8s.io/v1beta1
+	kind: MachineHealthCheck
+	metadata:
+	  name: %s-unhealthy-controlplane
+	spec:
+	  clusterName: %s
+	  maxUnhealthy: 100%
+	  selector:
+		matchLabels:
+		  cluster.x-k8s.io/control-plane: ""
+	  unhealthyConditions:
+		- type: Ready
+		  status: Unknown
+		  timeout: 1s
+	`, clusterName, clusterName)
+}
 
-// func generateMachineWorkerHealthCheck(clusterName string) string {
-// 	return fmt.Sprintf("apiVersion: cluster.x-k8s.io/v1beta1
-// 	kind: MachineHealthCheck
-// 	metadata:
-// 	  name: %s-unhealthy
-// 	spec:
-// 	  clusterName: %s
-// 	  maxUnhealthy: 100%
-// 	  nodeStartupTimeout: 10m
-// 	  selector:
-// 		matchLabels:
-// 		  cluster.x-k8s.io/deployment-name: %s-md-0
-// 	  unhealthyConditions:
-// 		- type: Ready
-// 		  status: Unknown
-// 		  timeout: 1s
-// 	", clusterName, clusterName, cluclusterName)
-// }
-// func createCNIFlannelPlugin() string {
+func generateMachineWorkerHealthCheck(clusterName string) string {
+	return fmt.Sprintf(`apiVersion: cluster.x-k8s.io/v1beta1
+	kind: MachineHealthCheck
+	metadata:
+	  name: %s-unhealthy
+	spec:
+	  clusterName: %s
+	  maxUnhealthy: 100%
+	  nodeStartupTimeout: 10m
+	  selector:
+		matchLabels:
+		  cluster.x-k8s.io/deployment-name: %s-md-0
+	  unhealthyConditions:
+		- type: Ready
+		  status: Unknown
+		  timeout: 1s
+	`, clusterName, clusterName, clusterName)
+}
+func createCNIFlannelPlugin() string {
 
-// 	return string("apiVersion: addons.cluster.x-k8s.io/v1alpha3
-// 	kind: ClusterResourceSet
-// 	metadata:
-// 	  name: cni-flannel
-// 	spec:
-// 	  clusterSelector:
-// 		matchLabels:
-// 		  cni: flannel
-// 	  resources:
-// 	  - kind: ConfigMap
-// 		name: flannel-configmap")
-// }
+	return string(`apiVersion: addons.cluster.x-k8s.io/v1alpha3
+	kind: ClusterResourceSet
+	metadata:
+	  name: cni-flannel
+	spec:
+	  clusterSelector:
+		matchLabels:
+		  cni: flannel
+	  resources:
+	  - kind: ConfigMap
+		name: flannel-configmap`)
+}
 
-// func addCNILabelToYamlFile(yamlFile string) string {
-// 	labelCNI := "\n  labels:\n    cni: flannel\n"
-// 	strings.Index
-// 	return finalYamlFile
-// }
+func addCNILabelToYamlFile(yamlFile string) string {
+	// labelCNI := "\n  labels:\n    cni: flannel\n"
+	// strings.Index()
+
+	return yamlFile
+}
+func saveContentToBashFile(content []byte, fileName string) string {
+	// var fileName string
+	tempFolder := createTempFolder(fileName)
+	// fmt.Println("Create  temp folder", tempFolder)
+	templateClusterFile := filepath.Join(tempFolder, fileName)
+	// fmt.Println("Create  temp file", templateClusterFile)
+	fmt.Println("Write  bash file", templateClusterFile)
+	// Check is sh file include #!/bin/sh part
+	contentStr := string(content)
+	var err error
+	if strings.Contains(contentStr, `#!/bin/sh`) {
+		err = os.WriteFile(templateClusterFile, content, 0777)
+	} else {
+		contentStr = `#!/bin/sh` + "\n" + contentStr
+		err = os.WriteFile(templateClusterFile, []byte(contentStr), 0777)
+	}
+
+	if err != nil {
+		fmt.Println(err.Error())
+		return "error"
+	}
+
+	return templateClusterFile
+}
