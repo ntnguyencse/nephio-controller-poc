@@ -393,8 +393,7 @@ func generateMachineWorkerHealthCheck(clusterName string) string {
 	  unhealthyConditions:
 		- type: Ready
 		  status: Unknown
-		  timeout: 1s
-	`, clusterName, clusterName, clusterName)
+		  timeout: 1s`, clusterName, clusterName, clusterName)
 }
 func createCNIFlannelPlugin() string {
 

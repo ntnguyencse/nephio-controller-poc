@@ -529,3 +529,6 @@ func getEnv(key string, defaultValue string) string {
 
 	return defaultValue
 }
+func waitingTask(namespace string, name string) {
+	kubeconfig, err := waitingloop.runWaitingLoop(namespace, name)
+}
