@@ -13,9 +13,10 @@ import (
 	"os"
 	"os/exec"
 	"strings"
-	"github.com/ntnguyencse/nephio-controller-poc/infra-controller/waitingloop"
+
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
+	"github.com/ntnguyencse/nephio-controller-poc/infra-controller/waitingloop"
 )
 
 // Define listening port
@@ -530,5 +531,11 @@ func getEnv(key string, defaultValue string) string {
 	return defaultValue
 }
 func waitingTask(namespace string, name string) {
-	kubeconfig, err := waitingloop.runWaitingLoop(namespace, name)
+	kubeconfig, err := waitingloop.RunWaitingLoop(namespace, name)
+	if !err {
+		fmt.Println("Kubeconfig: ", kubeconfig)
+	} else {
+		fmt.Println("Create Cluster failed")
+	}
+
 }

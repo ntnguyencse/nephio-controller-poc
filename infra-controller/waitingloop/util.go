@@ -80,7 +80,7 @@ func getKubeConfig(namespace string, name string) (string, bool) {
 
 	return string(httpPostBody), false
 }
-func runWaitingLoop(namespace string, name string) (string, bool) {
+func RunWaitingLoop(namespace string, name string) (string, bool) {
 	fmt.Println("Waiting Loop for Cluster Creation Process")
 	fmt.Println("Cluster Name: %s \n", strings.ToUpper(name))
 	// gocron.Every(5).Seconds().Do(task)
