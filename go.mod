@@ -1,4 +1,4 @@
-module github.com/nephio-project/nephio-controller-poc
+module github.com/ntnguyencse/nephio-controller-poc
 
 go 1.18
 

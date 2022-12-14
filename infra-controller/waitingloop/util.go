@@ -37,7 +37,7 @@ type KubeConfigList []KubeConfig
 
 func getStatus(name string) (string, bool) {
 	fmt.Println("Get status of cluster %s", name)
-	request, error := http.NewRequest("GET", providerApiServiceUrl+kubeAdmControlPlaneEndpoint, bytes.NewBuffer(jsonBytesData))
+	request, error := http.NewRequest("GET", providerApiServiceUrl+kubeAdmControlPlaneEndpoint, bytes.NewBuffer([]byte("abc")))
 	request.Header.Set("Content-Type", "application/json; charset=UTF-8")
 	client := &http.Client{}
 	response, error := client.Do(request)
@@ -60,7 +60,7 @@ func getStatus(name string) (string, bool) {
 }
 func getKubeConfig(namespace string, name string) (string, bool) {
 	fmt.Println("Get kubeconfig of cluster %s", name)
-	request, error := http.NewRequest("GET", providerApiServiceUrl+kubeConfigEndpoint, bytes.NewBuffer(jsonBytesData))
+	request, error := http.NewRequest("GET", providerApiServiceUrl+kubeConfigEndpoint, bytes.NewBuffer([]byte("abc")))
 	request.Header.Set("clustername", name)
 	client := &http.Client{}
 	response, error := client.Do(request)
