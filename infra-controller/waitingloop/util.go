@@ -80,7 +80,7 @@ func getKubeConfig(namespace string, name string) (string, bool) {
 
 	return string(httpPostBody), false
 }
-func RunWaitingLoop(namespace string, name string) (string, bool) {
+func RunWaitingLoop(namespace string, name string, communicate chan string) (string, bool) {
 	fmt.Println("Waiting Loop for Cluster Creation Process")
 	fmt.Println("Cluster Name: %s \n", strings.ToUpper(name))
 	// gocron.Every(5).Seconds().Do(task)
@@ -96,6 +96,7 @@ func RunWaitingLoop(namespace string, name string) (string, bool) {
 			}
 		} else {
 			fmt.Println("Error get Status cluster: %s", err)
+			communicate <- "error"
 			return "error", true
 		}
 
@@ -112,8 +113,10 @@ func RunWaitingLoop(namespace string, name string) (string, bool) {
 					kubeconfig, err := getKubeConfig(namespace, name)
 					if err {
 						fmt.Println("Get KubeConfig cluster name %s namespace %s failed", name, namespace)
+						communicate <- kubeconfig
 						return kubeconfig, true
 					}
+					communicate <- "error"
 					return kubeconfig, false
 					// return kubeconfig
 				}

@@ -17,6 +17,7 @@ import (
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
 	"github.com/ntnguyencse/nephio-controller-poc/infra-controller/waitingloop"
+	"github.com/robfig/cron"
 )
 
 // Define listening port
@@ -94,6 +95,9 @@ var currentInfraDeploymentPackagesList, backupInfraDeploymentPackagesList InfraR
 var currentClusterConfigList, backupClusterConfigsList ClusterConfigurationsList
 
 func main() {
+	kubeConfigChannel := make(chan KubeConfig)
+	defer close(kubeConfigChannel)
+
 	// currentListCluster := list.newList()
 	providerApiServiceUrl := "http://provider-api-svc:3333"
 	r := chi.NewRouter()
@@ -102,6 +106,9 @@ func main() {
 	r.Use(middleware.Recoverer)
 	fmt.Println("KubeConfig file path" + os.Getenv("KUBECONFIG"))
 	fmt.Println("Print PROVIDER_API_SVC_SERVICE_HOST: ", providerApiServiceUrl)
+
+	// Start cronjob every 1s check kubeconfig and add to list kubeconfig
+	appendKubeconfigCronJob(&kubeConfigList, kubeConfigChannel)
 
 	r.Get("/test", func(w http.ResponseWriter, r *http.Request) {
 		w.Write([]byte(string("Received Request Infra COntroller")))
@@ -259,6 +266,7 @@ func main() {
 			"default", "minimal", map[string]string{"none": "none"}, "default", "default", "default", "default", "v1.24.0", "1", "1", time.Now(), time.Now(),
 		}
 		go sendRequestCreateNewCluster(config, providerApiServiceUrl)
+		go startWaitingAndRetrieveKubeConfig(config.Namespace, config.Name, kubeConfigChannel)
 		w.Write([]byte(string("received")))
 	})
 	r.Post("/updateClusterPackage", func(w http.ResponseWriter, r *http.Request) {
@@ -281,6 +289,7 @@ func main() {
 			currentClusterConfigList.Items = append(currentClusterConfigList.Items, clusterConfigs)
 			config := mappingValueofClusterToClusterRecord(clusterConfigs, currentInfraDeploymentPackagesList)
 			go sendRequestCreateNewCluster(config, providerApiServiceUrl)
+			go startWaitingAndRetrieveKubeConfig(config.Namespace, config.Name, kubeConfigChannel)
 		} else {
 			replaceExistingClusterConfiguration(&currentClusterConfigList, clusterConfigs)
 		}
@@ -339,6 +348,34 @@ func main() {
 	})
 
 	http.ListenAndServe(serverPort, r)
+}
+func appendKubeConfigToList(kubeConfigList *KubeConfigList, kubeConfigChannel chan KubeConfig) {
+	if len(kubeConfigChannel) > 0 {
+		fmt.Println("A new KubeCOnfig is detected")
+		kubeConfig := <-kubeConfigChannel
+		kubeConfigList.Items = append(kubeConfigList.Items, kubeConfig)
+	}
+
+}
+
+func appendKubeconfigCronJob(kubeConfigList *KubeConfigList, kubecConfigChannel chan KubeConfig) {
+	c := cron.New()
+	c.AddFunc("0 * * * * *", func() { appendKubeConfigToList(kubeConfigList, kubecConfigChannel) })
+	c.Start()
+	fmt.Println("Start CronJob")
+}
+func startWaitingAndRetrieveKubeConfig(namespace string, name string, kubeConfigChannel chan KubeConfig) {
+	fmt.Println("startWaitingAndRetrieveKubeConfig function")
+	var kubeConfig KubeConfig
+	stringKubeconfigChannel := make(chan string)
+	defer close(stringKubeconfigChannel)
+	waitingloop.RunWaitingLoop(namespace, name, stringKubeconfigChannel)
+	kubeConfig.KubeConfig = <-stringKubeconfigChannel
+	kubeConfig.Name = name
+	kubeConfig.CreatedTime = time.Now()
+	kubeConfig.UpdatedTime = time.Now()
+	kubeConfigChannel <- kubeConfig
+
 }
 
 func isExistingInClusterList(list *ClusterRecordList, item *ClusterRecord) bool {
@@ -529,13 +566,4 @@ func getEnv(key string, defaultValue string) string {
 	}
 
 	return defaultValue
-}
-func waitingTask(namespace string, name string) {
-	kubeconfig, err := waitingloop.RunWaitingLoop(namespace, name)
-	if !err {
-		fmt.Println("Kubeconfig: ", kubeconfig)
-	} else {
-		fmt.Println("Create Cluster failed")
-	}
-
 }
