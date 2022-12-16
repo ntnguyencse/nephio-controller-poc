@@ -262,23 +262,25 @@ func main() {
 		fmt.Println("Print a part of yaml file")
 		if ok {
 			prg := "./kubectl"
-			arg1 := "apply"
-			arg2 := "-f"
+
 			argKubeConfig := "--kubeconfig"
-			argCreateNameSpace := "create"
+			argCreate := "create"
+			namespaceKeyword := "ns"
 			// Create namespace and don't care about the result
 			fmt.Println("Creating namespace if namespace doesnt exist.....")
-			cmdtemp := exec.Command(prg, argCreateNameSpace, namespaceClusterAPI, argKubeConfig, kubeConfig)
+			cmdtemp := exec.Command(prg, argCreate, namespaceKeyword, namespaceClusterAPI, argKubeConfig, kubeConfig)
 			stdoutTemp1, errTemp := cmdtemp.Output()
 			if errTemp != nil {
 				fmt.Println("Namespace already Exist")
-				// fmt.Println(err.Error())
+				fmt.Println(errTemp.Error())
+				fmt.Println(string(stdoutTemp1))
 				// log.Fatal(err)
 			}
 
 			fmt.Println("Created namespace: ", namespaceClusterAPI, "\nOutput command: ", string(stdoutTemp1))
 			//------------------------------------------------
-
+			arg1 := "apply"
+			arg2 := "-f"
 			fmt.Println("Applying cluster template file: ", clusterYamlFile)
 			cmd := exec.Command(prg, arg1, arg2, clusterYamlFile, argKubeConfig, kubeConfig)
 			// Get the result from kubectl and send to Infra Controller
@@ -358,8 +360,9 @@ func generateClusterYamlFile(record ClusterRecord) (string, bool) {
 	argK8sVersion := "--kubernetes-version"
 	argControlPlaneMachineCount := "--control-plane-machine-count"
 	argWorkerMachineCount := "--worker-machine-count"
+	argTargetNamespace := "--target-namespace"
 	// arg3 := "> /tmp/a.yaml"
-	cmd := exec.Command(arg, arg1, arg2, record.Name, argK8sVersion, record.KubernetesVersion, argControlPlaneMachineCount, record.ControlPlaneMachineCount, argWorkerMachineCount, record.KubernetesMachineCount)
+	cmd := exec.Command(arg, arg1, arg2, record.Name, argK8sVersion, record.KubernetesVersion, argControlPlaneMachineCount, record.ControlPlaneMachineCount, argWorkerMachineCount, record.KubernetesMachineCount, argTargetNamespace, namespaceClusterAPI)
 	fmt.Println("Print command: ", cmd.Path, cmd.Args, cmd.Env)
 	stdout, err := cmd.Output()
 
@@ -382,7 +385,36 @@ func generateClusterYamlFile(record ClusterRecord) (string, bool) {
 		// log.Fatal(err)
 		return "error", false
 	}
+	// Replace CDIR block
+	// sed 's/192.168.0.0/10.244.0.0/' templateClusterFile
+	cmd1 := exec.Command("sed", "-i", "s/192.168.0.0/10.244.0.0/", templateClusterFile)
+	stdout2, err2 := cmd1.Output()
+	if err2 != nil {
+		fmt.Println("Error occurred when replace CIDR block")
+		fmt.Println("stdout2", string(stdout2))
+		fmt.Println(err.Error())
+		return string(stdout2), false
+	}
+	// Add CNI meta data
+	fmt.Println("Replace CNI label...")
+	cmd2 := exec.Command("sed", "-i", "0,/spec:/s//  labels:\n    cni: flannel\nspec:/", templateClusterFile)
+	fmt.Println("Print command: ", cmd2.Path, cmd2.Args, cmd2.Env)
+	stdout3, err3 := cmd2.Output()
+	if err3 != nil {
+		fmt.Println("Error occurred when add CNI label")
+		fmt.Println("stdout3", string(stdout3))
+		return string(stdout3), false
+	}
+	fmt.Println("Print file after replace CNI.. ")
+	content, err := ioutil.ReadFile(templateClusterFile)
 
+	if err != nil {
+		fmt.Println("Cant open file")
+	} else {
+		fmt.Println(string(content))
+	}
+
+	//
 	return templateClusterFile, true
 }
 func Command(name string, arg ...string) *exec.Cmd {
@@ -503,8 +535,9 @@ func getAndParseNamespaceForCLusterApi() string {
 		namespaceClusterApi = "default"
 		fmt.Println("Name space for cluster API is assign to default value: ", namespaceClusterApi)
 	} else {
-		cloudProviderName := maps.Keys(cloudYaml.Clouds)[0]
-		namespaceClusterApi = cloudProviderName + "-" + cloudYaml.Clouds[cloudProviderName].AuthInform.ProjectName + "-" + cloudYaml.Clouds[cloudProviderName].AuthInform.UserName
+		cloudProviderName := "openstack"
+		cloudName := maps.Keys(cloudYaml.Clouds)[0]
+		namespaceClusterApi = cloudProviderName + "-" + cloudName + "-" + cloudYaml.Clouds[cloudName].AuthInform.ProjectName
 	}
 
 	return namespaceClusterApi
