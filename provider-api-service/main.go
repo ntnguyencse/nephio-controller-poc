@@ -308,6 +308,9 @@ func main() {
 
 		// Save content to file
 		filePath := saveContentToBashFile(httpPostBody, "bash.sh")
+		if filePath == "error" {
+			return
+		}
 		fmt.Println("Print bash file path: ", filePath)
 		cmd := exec.Command("/bin/sh", filePath)
 		// Run the bash file
@@ -458,32 +461,32 @@ func Command(name string, arg ...string) *exec.Cmd {
 // 	// labelCNI := "\n  labels:\n    cni: flannel\n"
 // 	// strings.Index()
 
-// 	return yamlFile
-// }
-// func saveContentToBashFile(content []byte, fileName string) string {
-// 	// var fileName string
-// 	tempFolder := createTempFolder(fileName)
-// 	// fmt.Println("Create  temp folder", tempFolder)
-// 	templateClusterFile := filepath.Join(tempFolder, fileName)
-// 	// fmt.Println("Create  temp file", templateClusterFile)
-// 	fmt.Println("Write  bash file", templateClusterFile)
-// 	// Check is sh file include #!/bin/sh part
-// 	contentStr := string(content)
-// 	var err error
-// 	if strings.Contains(contentStr, `#!/bin/sh`) {
-// 		err = os.WriteFile(templateClusterFile, content, 0777)
-// 	} else {
-// 		contentStr = `#!/bin/sh` + "\n" + contentStr
-// 		err = os.WriteFile(templateClusterFile, []byte(contentStr), 0777)
-// 	}
+//		return yamlFile
+//	}
+func saveContentToBashFile(content []byte, fileName string) string {
+	// var fileName string
+	tempFolder := createTempFolder(fileName)
 
-// 	if err != nil {
-// 		fmt.Println(err.Error())
-// 		return "error"
-// 	}
+	bashFilePath := filepath.Join(tempFolder, fileName)
 
-// 	return templateClusterFile
-// }
+	fmt.Println("Write  bash file", bashFilePath)
+	// Check is sh file include #!/bin/sh part
+	contentStr := string(content)
+	var err error
+	if strings.Contains(contentStr, `#!/bin/sh`) {
+		err = os.WriteFile(bashFilePath, content, 0777)
+	} else {
+		contentStr = `#!/bin/sh` + "\n" + contentStr
+		err = os.WriteFile(bashFilePath, []byte(contentStr), 0777)
+	}
+
+	if err != nil {
+		fmt.Println(err.Error())
+		return "error"
+	}
+
+	return bashFilePath
+}
 
 func getAndParseNamespaceForCLusterApi() string {
 	var namespaceClusterApi string
