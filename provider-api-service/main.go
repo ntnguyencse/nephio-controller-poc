@@ -7,6 +7,7 @@ import (
 
 	// work "github.com/gocraft/work"
 	// "container/list"
+	"encoding/base64"
 	"encoding/json"
 	"log"
 	"net/http"
@@ -17,6 +18,8 @@ import (
 
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
+	"golang.org/x/exp/maps"
+	"gopkg.in/yaml.v2"
 )
 
 // Define listening port
@@ -25,7 +28,26 @@ const kubectlCmd string = "kubectl"
 const clusterctlCmd string = "clusterctl"
 
 var kubeConfig string
+var namespaceClusterAPI string
 
+// Structure for Parse cloud yaml file
+type CloudYaml struct {
+	Clouds map[string]CloudInformation `yaml:"clouds"`
+}
+type AuthStruct struct {
+	AuthUrl           string `yaml:"auth_url"`
+	ProjectName       string `yaml:"project_name"`
+	UserName          string `yaml:"username"`
+	Password          string `yaml:"password"`
+	UserDomainName    string `yaml:"user_domain_name"`
+	ProjectDomainName string `yaml:"project_domain_name"`
+}
+type CloudInformation struct {
+	RegionName string     `yaml:"region_name"`
+	AuthInform AuthStruct `yaml:"auth"`
+}
+
+// End of parse yaml file structure
 type KubeConfigMessage struct {
 	Name       string `json:"Name"`
 	KubeConfig string `json:"KubeConfig"`
@@ -65,6 +87,8 @@ func main() {
 	// currentListCluster := list.newList()
 	kubeConfig = getEnv("KUBECONFIG", "$HOME/.kube/config")
 	fmt.Println("Env KUBECONFIG", kubeConfig)
+	namespaceClusterAPI = getAndParseNamespaceForCLusterApi()
+	fmt.Println("Print namespaceClusterAPI", namespaceClusterAPI)
 	r := chi.NewRouter()
 	r.Use(middleware.RequestID)
 	r.Use(middleware.Logger)
@@ -414,3 +438,22 @@ func Command(name string, arg ...string) *exec.Cmd {
 // 	strings.Index
 // 	return finalYamlFile
 // }
+
+func getAndParseNamespaceForCLusterApi() string {
+	var namespaceClusterApi string
+	cloudYamlB64 := getEnv("OPENSTACK_CLOUD_YAML_B64", "default")
+	data, err := base64.StdEncoding.DecodeString(cloudYamlB64)
+	if err != nil {
+		fmt.Println("error decode 64:", err)
+	}
+	cloudYaml := CloudYaml{}
+	err = yaml.Unmarshal([]byte(data), &cloudYaml)
+	if err != nil {
+		fmt.Println("error read yaml file:", err)
+	}
+
+	fmt.Printf("%q\n", data)
+	cloudProviderName := maps.Keys(cloudYaml.Clouds)[0]
+	namespaceClusterApi = cloudProviderName + "-" + cloudYaml.Clouds[cloudProviderName].AuthInform.ProjectName + "-" + cloudYaml.Clouds[cloudProviderName].AuthInform.UserName
+	return namespaceClusterApi
+}
