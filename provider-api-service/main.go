@@ -7,6 +7,7 @@ import (
 
 	// work "github.com/gocraft/work"
 	// "container/list"
+	"encoding/base64"
 	"encoding/json"
 	"log"
 	"net/http"
@@ -17,6 +18,8 @@ import (
 
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
+	"golang.org/x/exp/maps"
+	"gopkg.in/yaml.v2"
 )
 
 // Define listening port
@@ -25,7 +28,26 @@ const kubectlCmd string = "kubectl"
 const clusterctlCmd string = "clusterctl"
 
 var kubeConfig string
+var namespaceClusterAPI string
 
+// Structure for Parse cloud yaml file
+type CloudYaml struct {
+	Clouds map[string]CloudInformation `yaml:"clouds"`
+}
+type AuthStruct struct {
+	AuthUrl           string `yaml:"auth_url"`
+	ProjectName       string `yaml:"project_name"`
+	UserName          string `yaml:"username"`
+	Password          string `yaml:"password"`
+	UserDomainName    string `yaml:"user_domain_name"`
+	ProjectDomainName string `yaml:"project_domain_name"`
+}
+type CloudInformation struct {
+	RegionName string     `yaml:"region_name"`
+	AuthInform AuthStruct `yaml:"auth"`
+}
+
+// End of parse yaml file structure
 type KubeConfigMessage struct {
 	Name       string `json:"Name"`
 	KubeConfig string `json:"KubeConfig"`
@@ -65,6 +87,8 @@ func main() {
 	// currentListCluster := list.newList()
 	kubeConfig = getEnv("KUBECONFIG", "$HOME/.kube/config")
 	fmt.Println("Env KUBECONFIG", kubeConfig)
+	namespaceClusterAPI = getAndParseNamespaceForCLusterApi()
+	fmt.Println("Print namespaceClusterAPI", namespaceClusterAPI)
 	r := chi.NewRouter()
 	r.Use(middleware.RequestID)
 	r.Use(middleware.Logger)
@@ -241,6 +265,20 @@ func main() {
 			arg1 := "apply"
 			arg2 := "-f"
 			argKubeConfig := "--kubeconfig"
+			argCreateNameSpace := "create"
+			// Create namespace and don't care about the result
+			fmt.Println("Creating namespace if namespace doesnt exist.....")
+			cmdtemp := exec.Command(prg, argCreateNameSpace, namespaceClusterAPI, argKubeConfig, kubeConfig)
+			stdoutTemp1, errTemp := cmdtemp.Output()
+			if errTemp != nil {
+				fmt.Println("Namespace already Exist")
+				// fmt.Println(err.Error())
+				// log.Fatal(err)
+			}
+
+			fmt.Println("Created namespace: ", namespaceClusterAPI, "\nOutput command: ", string(stdoutTemp1))
+			//------------------------------------------------
+
 			fmt.Println("Applying cluster template file: ", clusterYamlFile)
 			cmd := exec.Command(prg, arg1, arg2, clusterYamlFile, argKubeConfig, kubeConfig)
 			// Get the result from kubectl and send to Infra Controller
@@ -270,6 +308,9 @@ func main() {
 
 		// Save content to file
 		filePath := saveContentToBashFile(httpPostBody, "bash.sh")
+		if filePath == "error" {
+			return
+		}
 		fmt.Println("Print bash file path: ", filePath)
 		cmd := exec.Command("/bin/sh", filePath)
 		// Run the bash file
@@ -360,78 +401,83 @@ func Command(name string, arg ...string) *exec.Cmd {
 	return cmd
 }
 
-func generateMachineControlPlaneHealthCheck(clusterName string) string {
-	return fmt.Sprintf(`apiVersion: cluster.x-k8s.io/v1beta1
-	kind: MachineHealthCheck
-	metadata:
-	  name: %s-unhealthy-controlplane
-	spec:
-	  clusterName: %s
-	  maxUnhealthy: 100%
-	  selector:
-		matchLabels:
-		  cluster.x-k8s.io/control-plane: ""
-	  unhealthyConditions:
-		- type: Ready
-		  status: Unknown
-		  timeout: 1s
-	`, clusterName, clusterName)
-}
+// func generateMachineControlPlaneHealthCheck(clusterName string) string {
+// 	return fmt.Sprintf(`apiVersion: cluster.x-k8s.io/v1beta1
+// 	kind: MachineHealthCheck
+// 	metadata:
+// 	  name: %s-unhealthy-controlplane
+// 	spec:
+// 	  clusterName: %s
+// 	  maxUnhealthy: 100%
+// 	  selector:
+// 		matchLabels:
+// 		  cluster.x-k8s.io/control-plane: ""
+// 	  unhealthyConditions:
+// 		- type: Ready
+// 		  status: Unknown
+// 		  timeout: 1s
+// 	`, clusterName, clusterName)
+// }
 
-func generateMachineWorkerHealthCheck(clusterName string) string {
-	return fmt.Sprintf(`apiVersion: cluster.x-k8s.io/v1beta1
-	kind: MachineHealthCheck
-	metadata:
-	  name: %s-unhealthy
-	spec:
-	  clusterName: %s
-	  maxUnhealthy: 100%
-	  nodeStartupTimeout: 10m
-	  selector:
-		matchLabels:
-		  cluster.x-k8s.io/deployment-name: %s-md-0
-	  unhealthyConditions:
-		- type: Ready
-		  status: Unknown
-		  timeout: 1s
-	`, clusterName, clusterName, clusterName)
-}
-func createCNIFlannelPlugin() string {
+// func generateMachineWorkerHealthCheck(clusterName string) string {
+// 	return fmt.Sprintf(`apiVersion: cluster.x-k8s.io/v1beta1
+// 	kind: MachineHealthCheck
+// 	metadata:
+// 	  name: %s-unhealthy
+// 	spec:
+// 	  clusterName: %s
+// 	  maxUnhealthy: 100%
+// 	  nodeStartupTimeout: 10m
+// 	  selector:
+// 		matchLabels:
+// 		  cluster.x-k8s.io/deployment-name: %s-md-0
+// 	  unhealthyConditions:
+// 		- type: Ready
+// 		  status: Unknown
+// 		  timeout: 1s
+// 	`, clusterName, clusterName, clusterName)
+// }
+// func createCNIFlannelPlugin() string {
 
-	return string(`apiVersion: addons.cluster.x-k8s.io/v1alpha3
-	kind: ClusterResourceSet
-	metadata:
-	  name: cni-flannel
-	spec:
-	  clusterSelector:
-		matchLabels:
-		  cni: flannel
-	  resources:
-	  - kind: ConfigMap
-		name: flannel-configmap`)
-}
+// 	return string(`apiVersion: addons.cluster.x-k8s.io/v1alpha3
+// 	kind: ClusterResourceSet
+// 	metadata:
+// 	  name: cni-flannel
+// 	spec:
+// 	  clusterSelector:
+// 		matchLabels:
+// 		  cni: flannel
+// 	  resources:
+// 	  - kind: ConfigMap
+// 		name: flannel-configmap`)
+// }
 
-func addCNILabelToYamlFile(yamlFile string) string {
-	// labelCNI := "\n  labels:\n    cni: flannel\n"
-	// strings.Index()
+//	func addCNILabelToYamlFile(yamlFile string) string {
+//		labelCNI := "\n  labels:\n    cni: flannel\n"
+//		strings.Index
+//		return finalYamlFile
+//	}
+// func addCNILabelToYamlFile(yamlFile string) string {
+// 	// labelCNI := "\n  labels:\n    cni: flannel\n"
+// 	// strings.Index()
 
-	return yamlFile
-}
+//		return yamlFile
+//	}
 func saveContentToBashFile(content []byte, fileName string) string {
 	// var fileName string
 	tempFolder := createTempFolder(fileName)
-	// fmt.Println("Create  temp folder", tempFolder)
-	templateClusterFile := filepath.Join(tempFolder, fileName)
-	// fmt.Println("Create  temp file", templateClusterFile)
-	fmt.Println("Write  bash file", templateClusterFile)
+
+	bashFilePath := filepath.Join(tempFolder, fileName)
+
+	fmt.Println("Write  bash file", bashFilePath)
 	// Check is sh file include #!/bin/sh part
 	contentStr := string(content)
 	var err error
 	if strings.Contains(contentStr, `#!/bin/sh`) {
-		err = os.WriteFile(templateClusterFile, content, 0777)
+		err = os.WriteFile(bashFilePath, content, 0777)
 	} else {
 		contentStr = `#!/bin/sh` + "\n" + contentStr
-		err = os.WriteFile(templateClusterFile, []byte(contentStr), 0777)
+		err = os.WriteFile(bashFilePath, []byte(contentStr), 0777)
 	}
 
 	if err != nil {
@@ -439,5 +485,27 @@ func saveContentToBashFile(content []byte, fileName string) string {
 		return "error"
 	}
 
-	return templateClusterFile
+	return bashFilePath
+}
+
+func getAndParseNamespaceForCLusterApi() string {
+	var namespaceClusterApi string
+	cloudYamlB64 := getEnv("OPENSTACK_CLOUD_YAML_B64", "default")
+	data, err := base64.StdEncoding.DecodeString(cloudYamlB64)
+	if err != nil {
+		fmt.Println("error decode 64:", err)
+		return "default"
+	}
+	cloudYaml := CloudYaml{}
+	err = yaml.Unmarshal([]byte(data), &cloudYaml)
+	if err != nil {
+		fmt.Println("error read yaml file:", err)
+		namespaceClusterApi = "default"
+		fmt.Println("Name space for cluster API is assign to default value: ", namespaceClusterApi)
+	} else {
+		cloudProviderName := maps.Keys(cloudYaml.Clouds)[0]
+		namespaceClusterApi = cloudProviderName + "-" + cloudYaml.Clouds[cloudProviderName].AuthInform.ProjectName + "-" + cloudYaml.Clouds[cloudProviderName].AuthInform.UserName
+	}
+
+	return namespaceClusterApi
 }
