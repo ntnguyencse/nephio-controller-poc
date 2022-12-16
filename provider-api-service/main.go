@@ -264,6 +264,19 @@ func main() {
 			arg1 := "apply"
 			arg2 := "-f"
 			argKubeConfig := "--kubeconfig"
+			argCreateNameSpace := "create"
+			// Create namespace and don't care about the result
+			cmdtemp := exec.Command(prg, argCreateNameSpace, namespaceClusterAPI, argKubeConfig, kubeConfig)
+			stdoutTemp1, errTemp := cmdtemp.Output()
+			if errTemp != nil {
+				fmt.Println("Namespace already Exist")
+				// fmt.Println(err.Error())
+				// log.Fatal(err)
+			}
+
+			fmt.Println("Created namespace: ", namespaceClusterAPI, "\nOutput command: ", string(stdoutTemp1))
+			//------------------------------------------------
+
 			fmt.Println("Applying cluster template file: ", clusterYamlFile)
 			cmd := exec.Command(prg, arg1, arg2, clusterYamlFile, argKubeConfig, kubeConfig)
 			// Get the result from kubectl and send to Infra Controller
