@@ -266,6 +266,7 @@ func main() {
 			argKubeConfig := "--kubeconfig"
 			argCreateNameSpace := "create"
 			// Create namespace and don't care about the result
+			fmt.Println("Creating namespace if namespace doesnt exist.....")
 			cmdtemp := exec.Command(prg, argCreateNameSpace, namespaceClusterAPI, argKubeConfig, kubeConfig)
 			stdoutTemp1, errTemp := cmdtemp.Output()
 			if errTemp != nil {
@@ -458,15 +459,18 @@ func getAndParseNamespaceForCLusterApi() string {
 	data, err := base64.StdEncoding.DecodeString(cloudYamlB64)
 	if err != nil {
 		fmt.Println("error decode 64:", err)
+		return "default"
 	}
 	cloudYaml := CloudYaml{}
 	err = yaml.Unmarshal([]byte(data), &cloudYaml)
 	if err != nil {
 		fmt.Println("error read yaml file:", err)
+		namespaceClusterApi = "default"
+		fmt.Println("Name space for cluster API is assign to default value: ", namespaceClusterApi)
+	} else {
+		cloudProviderName := maps.Keys(cloudYaml.Clouds)[0]
+		namespaceClusterApi = cloudProviderName + "-" + cloudYaml.Clouds[cloudProviderName].AuthInform.ProjectName + "-" + cloudYaml.Clouds[cloudProviderName].AuthInform.UserName
 	}
 
-	fmt.Printf("%q\n", data)
-	cloudProviderName := maps.Keys(cloudYaml.Clouds)[0]
-	namespaceClusterApi = cloudProviderName + "-" + cloudYaml.Clouds[cloudProviderName].AuthInform.ProjectName + "-" + cloudYaml.Clouds[cloudProviderName].AuthInform.UserName
 	return namespaceClusterApi
 }
