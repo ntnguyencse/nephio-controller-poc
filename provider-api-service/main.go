@@ -282,6 +282,7 @@ func main() {
 			if i != 0 {
 				splitStr := strings.Fields(str)
 				fmt.Println("Print splitStr: \n", splitStr, "\n")
+				fmt.Println("Print str: \n", str, "\n")
 				machines := Machine{splitStr[0], splitStr[1], splitStr[2], splitStr[3], splitStr[4], splitStr[5], splitStr[6], splitStr[7]}
 				// msgMarshaled, _ := json.Marshal(msg)
 
