@@ -283,7 +283,7 @@ func main() {
 				splitStr := strings.Fields(str)
 				fmt.Println("Print str: \n", str, "\n", splitStr)
 				var machineItem Machine
-				if len(str) > 7 {
+				if len(splitStr) > 7 {
 					machineItem = Machine{splitStr[0], splitStr[1], splitStr[2], splitStr[3], splitStr[4], splitStr[5], splitStr[6], splitStr[7]}
 				} else {
 					machineItem.Namespace = splitStr[0]
