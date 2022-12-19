@@ -281,12 +281,35 @@ func main() {
 		for i, str := range listTrimmedString {
 			if i != 0 {
 				splitStr := strings.Fields(str)
-				fmt.Println("Print splitStr: \n", splitStr, "\n")
-				fmt.Println("Print str: \n", strings.Replace(str, " ", "1", -1), "\n")
-				machines := Machine{splitStr[0], splitStr[1], splitStr[2], splitStr[3], splitStr[4], splitStr[5], splitStr[6], splitStr[7]}
+				var machineItem Machine
+				if len(str) > 6 {
+					machineItem = Machine{splitStr[0], splitStr[1], splitStr[2], splitStr[3], splitStr[4], splitStr[5], splitStr[6], splitStr[7]}
+				} else {
+					machineItem.Namespace = splitStr[0]
+					machineItem.Name = splitStr[1]
+					machineItem.Cluster = splitStr[2]
+					if len(splitStr) > 3 {
+						if splitStr[3] == "Failed" || splitStr[3] == "Deleting" || splitStr[3] == "Pending" {
+							machineItem.Phase = splitStr[3]
+							machineItem.NodeName = "Null"
+							machineItem.ProviderID = "Null"
+							machineItem.Age = "Null"
+							machineItem.Version = "Null"
+						} else if len(splitStr) > 4 {
+							machineItem.Phase = splitStr[4]
+							machineItem.NodeName = "Null"
+							machineItem.ProviderID = splitStr[3]
+							machineItem.Age = "Null"
+							machineItem.Version = "Null"
+						}
+						// machineItem.NodeName
+					}
+
+				}
+
 				// msgMarshaled, _ := json.Marshal(msg)
 
-				getMachinesResult = append(getMachinesResult, machines)
+				getMachinesResult = append(getMachinesResult, machineItem)
 			}
 		}
 		jsonGetMachinesResult, errorConvertJson := json.Marshal(getMachinesResult)
