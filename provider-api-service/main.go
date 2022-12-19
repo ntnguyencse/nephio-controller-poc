@@ -20,7 +20,7 @@ import (
 
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
-	"github.com/ntnguyencse/nephio-controller-poc/provider-api-service/yaml-template"
+	yamlFileTemplate "github.com/ntnguyencse/nephio-controller-poc/provider-api-service/yaml-template"
 	"golang.org/x/exp/maps"
 	"gopkg.in/yaml.v2"
 )
@@ -121,10 +121,6 @@ func main() {
 	// kubectlExecutablePath, _ := exec.LookPath("kubectl")
 
 	// currentListCluster := list.newList()
-	kubeConfig = getEnv("KUBECONFIG", "$HOME/.kube/config")
-	fmt.Println("Env KUBECONFIG", kubeConfig)
-	namespaceClusterAPI = getAndParseNamespaceForCLusterApi()
-	fmt.Println("Print namespaceClusterAPI", namespaceClusterAPI)
 	r := chi.NewRouter()
 	r.Use(middleware.RequestID)
 	r.Use(middleware.Logger)
