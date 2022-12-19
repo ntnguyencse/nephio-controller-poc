@@ -19,6 +19,7 @@ COPY go.mod go.mod
 COPY go.sum go.sum
 COPY Makefile Makefile
 COPY run.sh run.sh
+COPY yaml-template yaml-template
 # COPY env.rc env.rc
 # COPY clouds.yaml clouds.yaml
 COPY config-env config-env
