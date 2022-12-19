@@ -289,14 +289,17 @@ func main() {
 					machineItem.Namespace = splitStr[0]
 					machineItem.Name = splitStr[1]
 					machineItem.Cluster = splitStr[2]
+					fmt.Println("Leng of string array: ", len(splitStr))
 					if len(splitStr) > 3 {
 						if splitStr[3] == "Failed" || splitStr[3] == "Deleting" || splitStr[3] == "Pending" {
+							fmt.Println("Missing NodeName and Provider ID")
 							machineItem.Phase = splitStr[3]
 							machineItem.NodeName = "Null"
 							machineItem.ProviderID = "Null"
 							machineItem.Age = "Null"
 							machineItem.Version = "Null"
 						} else if len(splitStr) > 4 {
+							fmt.Println("Missing NodeName")
 							machineItem.Phase = splitStr[4]
 							machineItem.NodeName = "Null"
 							machineItem.ProviderID = splitStr[3]
