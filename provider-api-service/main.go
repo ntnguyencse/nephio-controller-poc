@@ -273,6 +273,7 @@ func main() {
 		var getMachinesResult []Machine
 		trimmedString := strings.TrimSpace(string(stdout))
 		listTrimmedString := strings.Split(trimmedString, "\n")
+		fmt.Println("Print listTrimmedString: \n", listTrimmedString, "\n")
 		if len(listTrimmedString) < 2 {
 			w.Write([]byte(string(stdout)))
 		}
