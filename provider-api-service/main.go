@@ -1,15 +1,16 @@
 package main
 
 import (
+	"crypto/sha1"
 	"fmt"
 	"io/ioutil"
+	"math/rand"
 	"time"
 
 	// work "github.com/gocraft/work"
 	// "container/list"
 	"encoding/base64"
 	"encoding/json"
-	"log"
 	"net/http"
 	"os"
 	"os/exec"
@@ -18,6 +19,7 @@ import (
 
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
+	yamlFileTemplate "github.com/ntnguyencse/nephio-controller-poc/provider-api-service/yaml-template"
 	"golang.org/x/exp/maps"
 	"gopkg.in/yaml.v2"
 )
@@ -78,17 +80,60 @@ type ClusterRecord struct {
 	CreatedTime              time.Time         `json:"createdTime,omitempty"`
 	UpdatedTime              time.Time         `json:"updatedTime,omitempty"`
 }
+type Machine struct {
+	Namespace  string `json:"namespace,omitempty"`
+	Name       string `json:"name,omitempty"`
+	Cluster    string `json:"cluster,omitempty"`
+	NodeName   string `json:"nodename,omitempty"`
+	ProviderID string `json:"providerid,omitempty"`
+	Phase      string `json:"phase,omitempty"`
+	Age        string `json:"age,omitempty"`
+	Version    string `json:"version,omitempty"`
+}
+
+type Machines struct {
+	List []Machine `json:"machines,omitempty"`
+}
 
 var listYamlFileClusterAPI []string
+
+func init() {
+	rand.Seed(time.Now().UnixNano())
+}
+
+// NewSHA1Hash generates a new SHA1 hash based on
+// a random number of characters.
+func NewSHA1Hash(n ...int) string {
+	noRandomCharacters := 32
+
+	if len(n) > 0 {
+		noRandomCharacters = n[0]
+	}
+
+	randString := RandomString(noRandomCharacters)
+
+	hash := sha1.New()
+	hash.Write([]byte(randString))
+	bs := hash.Sum(nil)
+
+	return fmt.Sprintf("%x", bs)
+}
+
+var characterRunes = []rune("abcdefghijklmnopqrstuvwxyz0123456789")
+
+// RandomString generates a random string of n length
+func RandomString(n int) string {
+	b := make([]rune, n)
+	for i := range b {
+		b[i] = characterRunes[rand.Intn(len(characterRunes))]
+	}
+	return string(b)
+}
 
 func main() {
 	// kubectlExecutablePath, _ := exec.LookPath("kubectl")
 
 	// currentListCluster := list.newList()
-	kubeConfig = getEnv("KUBECONFIG", "$HOME/.kube/config")
-	fmt.Println("Env KUBECONFIG", kubeConfig)
-	namespaceClusterAPI = getAndParseNamespaceForCLusterApi()
-	fmt.Println("Print namespaceClusterAPI", namespaceClusterAPI)
 	r := chi.NewRouter()
 	r.Use(middleware.RequestID)
 	r.Use(middleware.Logger)
@@ -143,7 +188,7 @@ func main() {
 
 		if err != nil {
 			fmt.Println(err.Error())
-			log.Fatal(err)
+			// log.Fatal(err)
 			return
 		}
 
@@ -183,7 +228,7 @@ func main() {
 
 		if err != nil {
 			fmt.Println(err.Error())
-			log.Fatal(err)
+			// log.Fatal(err)
 			return
 		}
 
@@ -209,7 +254,71 @@ func main() {
 
 		w.Write([]byte(string(jsongetClusterResult)))
 	})
+	r.Get("/getmachines", func(w http.ResponseWriter, r *http.Request) {
 
+		prg := "./kubectl"
+		arg1 := "get"
+		arg2 := "machines"
+		arg3 := "-A"
+		argKubeConfig := "--kubeconfig"
+		cmd := exec.Command(prg, arg1, arg2, arg3, argKubeConfig, kubeConfig)
+
+		stdout, err := cmd.Output()
+
+		if err != nil {
+			fmt.Println(err.Error())
+			// log.Fatal(err)
+			return
+		}
+
+		var getMachinesResult []Machine
+		trimmedString := strings.TrimSpace(string(stdout))
+		listTrimmedString := strings.Split(trimmedString, "\n")
+
+		if len(listTrimmedString) < 2 {
+			w.Write([]byte(string(stdout)))
+		}
+		for i, str := range listTrimmedString {
+			if i != 0 {
+				splitStr := strings.Fields(str)
+				var machineItem Machine
+				if len(splitStr) > 7 {
+					machineItem = Machine{splitStr[0], splitStr[1], splitStr[2], splitStr[3], splitStr[4], splitStr[5], splitStr[6], splitStr[7]}
+				} else {
+					machineItem.Namespace = splitStr[0]
+					machineItem.Name = splitStr[1]
+					machineItem.Cluster = splitStr[2]
+					if len(splitStr) > 3 {
+						if splitStr[3] == "Failed" || splitStr[3] == "Deleting" || splitStr[3] == "Pending" {
+							machineItem.Phase = splitStr[3]
+							machineItem.NodeName = "Null"
+							machineItem.ProviderID = "Null"
+							machineItem.Age = "Null"
+							machineItem.Version = "Null"
+						} else if len(splitStr) > 4 {
+							machineItem.Phase = splitStr[4]
+							machineItem.NodeName = "Null"
+							machineItem.ProviderID = splitStr[3]
+							machineItem.Age = "Null"
+							machineItem.Version = "Null"
+						}
+						// machineItem.NodeName
+					}
+
+				}
+
+				// msgMarshaled, _ := json.Marshal(msg)
+
+				getMachinesResult = append(getMachinesResult, machineItem)
+			}
+		}
+		jsonGetMachinesResult, errorConvertJson := json.Marshal(getMachinesResult)
+		if errorConvertJson != nil {
+			fmt.Println("error:", errorConvertJson)
+		}
+
+		w.Write([]byte(string(jsonGetMachinesResult)))
+	})
 	r.Get("/getkubeconfig", func(w http.ResponseWriter, r *http.Request) {
 		var clusterName string
 		clusterName = r.Header.Get("clustername")
@@ -238,7 +347,10 @@ func main() {
 
 		w.Write([]byte(string(stdout)))
 	})
-
+	r.Get("/testCreateNewCluster", func(w http.ResponseWriter, r *http.Request) {
+		runK8sJobs(yamlFileTemplate.JobsTemplate)
+		w.Write([]byte(string("Creating k8s Job: ")))
+	})
 	// Create New cluster in OPENSTACK through call clusterASPI
 	r.Post("/createNewCluster", func(w http.ResponseWriter, r *http.Request) {
 
@@ -296,6 +408,8 @@ func main() {
 
 			fmt.Println("Output kubectl apply -f ", string(stdout1))
 			listYamlFileClusterAPI = append(listYamlFileClusterAPI, clusterYamlFile)
+			// Run k8s Job to waiting for cluster provisioning status, get kubeconfig and register cluster to EMCO
+			runK8sJobs(yamlFileTemplate.JobsTemplate)
 		}
 
 		w.Write([]byte(string("Creating cluster: ") + clusterConfig.Name))
@@ -310,6 +424,47 @@ func main() {
 
 		// Save content to file
 		filePath := saveContentToBashFile(httpPostBody, "bash.sh")
+		if filePath == "error" {
+			return
+		}
+		fmt.Println("Print bash file path: ", filePath)
+		cmd := exec.Command("/bin/sh", filePath)
+		// Run the bash file
+		fmt.Println("Print command: ", cmd.Path, cmd.Args, cmd.Env)
+		stdout1, err := cmd.Output()
+
+		// prg := "echo " + httpPostBody
+		// arg := " | kubectl apply -f -"
+		// cmd := exec.Command(prg, arg)
+		// stdout, err := cmd.Output()
+
+		if err != nil {
+			fmt.Println(fmt.Sprint(err) + ": " + string(stdout1))
+			return
+		}
+		w.Write([]byte(string(stdout1)))
+	})
+	// Run an K8s Jobs Endpoint
+	r.Post("/runk8sjobs", func(w http.ResponseWriter, r *http.Request) {
+
+		fmt.Println("Received runk8sjobs Request")
+		httpPostBody, err := ioutil.ReadAll(r.Body) //<--- here!
+		fmt.Println(string(httpPostBody))
+		// Replace ENV Var in file
+		stringHttpPostBody := string(httpPostBody)
+		// Generate job name. env values
+		jobName := "job-" + RandomString(6)
+		clusterName := jobName                  // "placeholder-cluster-name"
+		clusterNamespace := namespaceClusterAPI //"placeholder-cluster-namespace"
+		// objectName := "object-name"
+		// statusObject := "status-object"
+
+		stringHttpPostBody = strings.Replace(stringHttpPostBody, "placeholder-name", jobName, 1)
+		stringHttpPostBody = strings.Replace(stringHttpPostBody, "placeholder-cluster-name", clusterName, 1)
+		stringHttpPostBody = strings.Replace(stringHttpPostBody, "placeholder-cluster-namespace", clusterNamespace, 1)
+		//
+		// Save content to file
+		filePath := saveContentToYamlFile(stringHttpPostBody, "jobs.yaml")
 		if filePath == "error" {
 			return
 		}
@@ -520,6 +675,28 @@ func saveContentToBashFile(content []byte, fileName string) string {
 	return bashFilePath
 }
 
+// Save yaml file
+func saveContentToYamlFile(content string, fileName string) string {
+	// var fileName string
+	tempFolder := createTempFolder(fileName)
+
+	bashFilePath := filepath.Join(tempFolder, fileName)
+
+	fmt.Println("Write  yaml file", bashFilePath)
+	// Check is sh file include #!/bin/sh part
+	// contentStr := string(content)
+	var err error
+
+	err = os.WriteFile(bashFilePath, []byte(content), 0777)
+
+	if err != nil {
+		fmt.Println(err.Error())
+		return "error"
+	}
+
+	return bashFilePath
+}
+
 func getAndParseNamespaceForCLusterApi() string {
 	var namespaceClusterApi string
 	cloudYamlB64 := getEnv("OPENSTACK_CLOUD_YAML_B64", "default")
@@ -541,4 +718,55 @@ func getAndParseNamespaceForCLusterApi() string {
 	}
 
 	return namespaceClusterApi
+}
+
+func runK8sJobs(yamlTemplate string) {
+	fmt.Println("Begin runk8sjobs Request")
+	// httpPostBody, err := ioutil.ReadAll(r.Body) //<--- here!
+	// fmt.Println(string(httpPostBody))
+	// Replace ENV Var in file
+	stringHttpPostBody := yamlFileTemplate.JobsTemplate //string(httpPostBody)
+	// Generate job name. env values
+	jobName := "job-" + RandomString(6)
+	clusterName := jobName                  // "placeholder-cluster-name"
+	clusterNamespace := namespaceClusterAPI //"placeholder-cluster-namespace"
+	// objectName := "object-name"
+	// statusObject := "status-object"
+
+	stringHttpPostBody = strings.Replace(stringHttpPostBody, "placeholder-name", jobName, 1)
+	stringHttpPostBody = strings.Replace(stringHttpPostBody, "placeholder-cluster-name", clusterName, 1)
+	stringHttpPostBody = strings.Replace(stringHttpPostBody, "placeholder-cluster-namespace", clusterNamespace, 1)
+	//
+	// Save content to file
+	filePath := saveContentToYamlFile(stringHttpPostBody, "jobs")
+	if filePath == "error" {
+		fmt.Println("Error when save content to yaml file")
+		return
+	}
+	fmt.Println("Print k8s Jobs path: ", filePath)
+	prg := "./kubectl"
+
+	argKubeConfig := "--kubeconfig"
+	arg1 := "apply"
+	arg2 := "-f"
+	fmt.Println("Applying k8s Job  file: ", stringHttpPostBody, "\n------------------------------\n")
+	cmd := exec.Command(prg, arg1, arg2, filePath, argKubeConfig, kubeConfig)
+	// Get the result from kubectl and send to Infra Controller
+	fmt.Println("Print command: ", cmd.Path, cmd.Args, cmd.Env)
+	stdout1, err := cmd.Output()
+
+	if err != nil {
+		fmt.Println("Error applying K8s Jobs occurred")
+		// Print Error and details of error happend
+		fmt.Println(fmt.Sprint(err) + ": " + string(stdout1))
+		// log.Fatal(err)
+	}
+
+	fmt.Println("Output kubectl apply -f ", string(stdout1))
+	// stdout, err := cmd.Output()
+
+	if err != nil {
+		fmt.Println(fmt.Sprint(err) + ": " + string(stdout1))
+		return
+	}
 }
