@@ -81,6 +81,7 @@ type ClusterRecord struct {
 	UpdatedTime              time.Time         `json:"updatedTime,omitempty"`
 }
 type Machine struct {
+	Namespace  string `json:"namespace,omitempty"`
 	Name       string `json:"name,omitempty"`
 	Cluster    string `json:"cluster,omitempty"`
 	NodeName   string `json:"nodename,omitempty"`
@@ -273,14 +274,15 @@ func main() {
 		var getMachinesResult []Machine
 		trimmedString := strings.TrimSpace(string(stdout))
 		listTrimmedString := strings.Split(trimmedString, "\n")
-		fmt.Println("Print listTrimmedString: \n", listTrimmedString, "\n")
+
 		if len(listTrimmedString) < 2 {
 			w.Write([]byte(string(stdout)))
 		}
 		for i, str := range listTrimmedString {
 			if i != 0 {
 				splitStr := strings.Fields(str)
-				machines := Machine{splitStr[0], splitStr[1], splitStr[2], splitStr[3], splitStr[4], splitStr[5], splitStr[6]}
+				fmt.Println("Print splitStr: \n", splitStr, "\n")
+				machines := Machine{splitStr[0], splitStr[1], splitStr[2], splitStr[3], splitStr[4], splitStr[5], splitStr[6], splitStr[7]}
 				// msgMarshaled, _ := json.Marshal(msg)
 
 				getMachinesResult = append(getMachinesResult, machines)
