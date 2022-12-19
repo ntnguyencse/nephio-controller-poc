@@ -106,7 +106,7 @@ func NewSHA1Hash(n ...int) string {
 	return fmt.Sprintf("%x", bs)
 }
 
-var characterRunes = []rune("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789")
+var characterRunes = []rune("abcdefghijklmnopqrstuvwxyz0123456789")
 
 // RandomString generates a random string of n length
 func RandomString(n int) string {
@@ -270,7 +270,10 @@ func main() {
 
 		w.Write([]byte(string(stdout)))
 	})
-
+	r.Get("/testCreateNewCluster", func(w http.ResponseWriter, r *http.Request) {
+		runK8sJobs(yamlFileTemplate.JobsTemplate)
+		w.Write([]byte(string("Creating k8s Job: ")))
+	})
 	// Create New cluster in OPENSTACK through call clusterASPI
 	r.Post("/createNewCluster", func(w http.ResponseWriter, r *http.Request) {
 
@@ -328,6 +331,8 @@ func main() {
 
 			fmt.Println("Output kubectl apply -f ", string(stdout1))
 			listYamlFileClusterAPI = append(listYamlFileClusterAPI, clusterYamlFile)
+			// Run k8s Job to waiting for cluster provisioning status, get kubeconfig and register cluster to EMCO
+			runK8sJobs(yamlFileTemplate.JobsTemplate)
 		}
 
 		w.Write([]byte(string("Creating cluster: ") + clusterConfig.Name))
@@ -656,7 +661,7 @@ func runK8sJobs(yamlTemplate string) {
 	stringHttpPostBody = strings.Replace(stringHttpPostBody, "placeholder-cluster-namespace", clusterNamespace, 1)
 	//
 	// Save content to file
-	filePath := saveContentToYamlFile(stringHttpPostBody, "jobs.yaml")
+	filePath := saveContentToYamlFile(stringHttpPostBody, "jobs")
 	if filePath == "error" {
 		fmt.Println("Error when save content to yaml file")
 		return
@@ -667,7 +672,7 @@ func runK8sJobs(yamlTemplate string) {
 	argKubeConfig := "--kubeconfig"
 	arg1 := "apply"
 	arg2 := "-f"
-	fmt.Println("Applying cluster template file: ", filePath)
+	fmt.Println("Applying k8s Job  file: ", stringHttpPostBody, "\n------------------------------\n")
 	cmd := exec.Command(prg, arg1, arg2, filePath, argKubeConfig, kubeConfig)
 	// Get the result from kubectl and send to Infra Controller
 	fmt.Println("Print command: ", cmd.Path, cmd.Args, cmd.Env)

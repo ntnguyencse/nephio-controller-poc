@@ -16,7 +16,6 @@ spec:
       - name: job
         image: dcnstarlab/job-cluster:latest
         env:
-        // - name: OBJECT_NAME, STATUS, LAyer
         - name: CLUSTER_NAME
           value: placeholder-cluster-name
         - name: CLUSTER_NAMESPACE
