@@ -11,7 +11,6 @@ import (
 	// "container/list"
 	"encoding/base64"
 	"encoding/json"
-	"log"
 	"net/http"
 	"os"
 	"os/exec"
@@ -80,6 +79,19 @@ type ClusterRecord struct {
 	KubernetesMachineCount   string            `json:"kubernetesMachineCount,omitempty"`
 	CreatedTime              time.Time         `json:"createdTime,omitempty"`
 	UpdatedTime              time.Time         `json:"updatedTime,omitempty"`
+}
+type Machine struct {
+	Name       string `json:"name,omitempty"`
+	Cluster    string `json:"cluster,omitempty"`
+	NodeName   string `json:"nodename,omitempty"`
+	ProviderID string `json:"providerid,omitempty"`
+	Phase      string `json:"phase,omitempty"`
+	Age        string `json:"age,omitempty"`
+	Version    string `json:"version,omitempty"`
+}
+
+type Machines struct {
+	List []Machine `json:"machines,omitempty"`
 }
 
 var listYamlFileClusterAPI []string
@@ -215,7 +227,7 @@ func main() {
 
 		if err != nil {
 			fmt.Println(err.Error())
-			log.Fatal(err)
+			// log.Fatal(err)
 			return
 		}
 
@@ -241,7 +253,45 @@ func main() {
 
 		w.Write([]byte(string(jsongetClusterResult)))
 	})
+	r.Get("/getmachines", func(w http.ResponseWriter, r *http.Request) {
 
+		prg := "./kubectl"
+		arg1 := "get"
+		arg2 := "machines"
+		arg3 := "-A"
+		argKubeConfig := "--kubeconfig"
+		cmd := exec.Command(prg, arg1, arg2, arg3, argKubeConfig, kubeConfig)
+
+		stdout, err := cmd.Output()
+
+		if err != nil {
+			fmt.Println(err.Error())
+			// log.Fatal(err)
+			return
+		}
+
+		var getMachinesResult []Machine
+		trimmedString := strings.TrimSpace(string(stdout))
+		listTrimmedString := strings.Split(trimmedString, "\n")
+		if len(listTrimmedString) < 2 {
+			w.Write([]byte(string(stdout)))
+		}
+		for i, str := range listTrimmedString {
+			if i != 0 {
+				splitStr := strings.Fields(str)
+				machines := Machine{splitStr[0], splitStr[1], splitStr[2], splitStr[3], splitStr[4], splitStr[5], splitStr[6]}
+				// msgMarshaled, _ := json.Marshal(msg)
+
+				getMachinesResult = append(getMachinesResult, machines)
+			}
+		}
+		jsonGetMachinesResult, errorConvertJson := json.Marshal(getMachinesResult)
+		if errorConvertJson != nil {
+			fmt.Println("error:", errorConvertJson)
+		}
+
+		w.Write([]byte(string(jsonGetMachinesResult)))
+	})
 	r.Get("/getkubeconfig", func(w http.ResponseWriter, r *http.Request) {
 		var clusterName string
 		clusterName = r.Header.Get("clustername")
