@@ -28,6 +28,7 @@ import (
 const serverPort string = ":3333"
 const kubectlCmd string = "kubectl"
 const clusterctlCmd string = "clusterctl"
+const k8sJobsTemplateFile string = "/job-template/job-template.yaml"
 
 var kubeConfig string
 var namespaceClusterAPI string
@@ -119,6 +120,7 @@ var listYamlFileClusterAPI []string
 
 func init() {
 	rand.Seed(time.Now().UnixNano())
+	// k8sJobsTemplateFile = getEnv("K8S_JOB_TEMPLATE","./")
 }
 
 // NewSHA1Hash generates a new SHA1 hash based on
@@ -158,7 +160,7 @@ func main() {
 	r.Use(middleware.RequestID)
 	r.Use(middleware.Logger)
 	r.Use(middleware.Recoverer)
-	// fmt.Println("KubeConfig file path" + os.Getenv("KUBECONFIG"))
+	fmt.Println("KubeConfig file path" + os.Getenv("KUBECONFIG"))
 	r.Get("/test", func(w http.ResponseWriter, r *http.Request) {
 		// construct `go version` command
 		// cmdGoVer := &exec.Cmd{
@@ -375,7 +377,7 @@ func main() {
 		w.Write([]byte(string(stdout)))
 	})
 	r.Get("/testCreateNewCluster", func(w http.ResponseWriter, r *http.Request) {
-		runK8sJobs(yamlFileTemplate.JobsTemplate)
+		runK8sJobs(k8sJobsTemplateFile, "test")
 		w.Write([]byte(string("Creating k8s Job: ")))
 	})
 	// Create New cluster in OPENSTACK through call clusterASPI
@@ -396,6 +398,7 @@ func main() {
 			fmt.Println(err)
 		}
 		fmt.Println((clusterConfig))
+		// Generate cluster
 		fmt.Println("Before Applying cluster YAML FIle")
 		clusterYamlFile, ok := generateClusterYamlFile(clusterConfig)
 		fmt.Println("Print a part of yaml file")
@@ -420,6 +423,7 @@ func main() {
 			//------------------------------------------------
 			arg1 := "apply"
 			arg2 := "-f"
+			// Applying the yaml cluster
 			fmt.Println("Applying cluster template file: ", clusterYamlFile)
 			cmd := exec.Command(prg, arg1, arg2, clusterYamlFile, argKubeConfig, kubeConfig)
 			// Get the result from kubectl and send to Infra Controller
@@ -436,7 +440,7 @@ func main() {
 			fmt.Println("Output kubectl apply -f ", string(stdout1))
 			listYamlFileClusterAPI = append(listYamlFileClusterAPI, clusterYamlFile)
 			// Run k8s Job to waiting for cluster provisioning status, get kubeconfig and register cluster to EMCO
-			runK8sJobs(yamlFileTemplate.JobsTemplate)
+			runK8sJobs(k8sJobsTemplateFile, clusterConfig.Name)
 		}
 
 		w.Write([]byte(string("Creating cluster: ") + clusterConfig.Name))
@@ -788,18 +792,26 @@ func getAndParseNamespaceForCLusterApi() string {
 	return namespaceClusterApi
 }
 
-func runK8sJobs(yamlTemplate string) {
+func runK8sJobs(templateFilePath string, clusterName string) {
 	fmt.Println("Begin runk8sjobs Request")
-	// httpPostBody, err := ioutil.ReadAll(r.Body) //<--- here!
-	// fmt.Println(string(httpPostBody))
-	// Replace ENV Var in file
-	stringHttpPostBody := yamlFileTemplate.JobsTemplate //string(httpPostBody)
+	// Read file
+	var stringHttpPostBody string
+	templateFile, err := os.ReadFile(templateFilePath)
+	if err != nil {
+		fmt.Println("Error when read k8s job template file")
+		// return
+	} else {
+		fmt.Println("Use default k8s jobs template file")
+		stringHttpPostBody = yamlFileTemplate.JobsTemplate //string(httpPostBody)
+	}
+	// fmt.Print(string(dat))
+	//
+
 	// Generate job name. env values
+	stringHttpPostBody = string(templateFile)
 	jobName := "job-" + RandomString(6)
-	clusterName := jobName                  // "placeholder-cluster-name"
+
 	clusterNamespace := namespaceClusterAPI //"placeholder-cluster-namespace"
-	// objectName := "object-name"
-	// statusObject := "status-object"
 
 	stringHttpPostBody = strings.Replace(stringHttpPostBody, "placeholder-name", jobName, 1)
 	stringHttpPostBody = strings.Replace(stringHttpPostBody, "placeholder-cluster-name", clusterName, 1)
@@ -890,4 +902,5 @@ func recoveryJob(clusterName string) (string, bool) {
 	// 3. Create Back up VM
 	// 4. Join the Backup Node to cluster
 	// 5. Receive incident => Use backup Node
+	return "temp", true
 }
