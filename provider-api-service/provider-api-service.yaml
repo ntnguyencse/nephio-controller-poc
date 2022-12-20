@@ -20,7 +20,7 @@ spec:
           kubernetes.io/hostname: hyfast-mgmt01
       containers:
       - name: provider-api-service-deployment
-        image: ntnguyencse/provider-api-service:v1.16
+        image: ntnguyencse/provider-api-service:v1.30
         imagePullPolicy: Always
         env:
           - name: KUBECONFIG
@@ -86,13 +86,13 @@ spec:
         volumeMounts:
         - name: kubeconfig
           mountPath: /kubeconfig
-        - name: job-template.yaml
+        - name: job-template
           mountPath: /job-template
       volumes:
       - name: kubeconfig
         configMap: 
           name: clusterapi-management-kubeconfig
-      - name: job-template.yaml
+      - name: job-template
         configMap:
           name: job-k8s-template
       # env:
@@ -141,15 +141,15 @@ data:
   # property-like keys; each key maps to a simple value
   openstack-failure-domain : "compute"
   openstack-image-name: "ubuntu-k8s-1.24"
-  openstack-external-network-id: "faa68d67-0441-4749-895b-95ac49f85d86"
-  openstack-control-plane-machine-flavor: "cluster.controller"
-  openstack-dns-nameservers: "8.8.8.8"
-  openstack-node-machine-flavor: "cluster.compute"
+  openstack-external-network-id: "faa689f85d86"
+  openstack-control-plane-machine-flavor: "m1.medium"
+  openstack-dns-nameservers: "192."
+  openstack-node-machine-flavor: "m1.medium"
   openstack-ssh-key-name: "clusterapi"
-  openstack-cloud: "starlab-cloud"
+  openstack-cloud: "soud"
   openstack-cloud-cacert-b64: "Cg=="
-  openstack-cloud-provider-conf-b64: "W0do="
-  openstack-cloud-yaml-b64: "Y2xIG51bGwK"
+  openstack-cloud-provider-conf-b64: "W0U9InN0YXJsYWIiCIK"
+  openstack-cloud-yaml-b64: "Y2xvdWAgmFtZTox0Cg=="
 ---
 apiVersion: v1
 kind: ConfigMap
@@ -157,7 +157,7 @@ metadata:
   name: job-k8s-template
   namespace: nephio-system
 data:
-  config: |
+  job-template.yaml: |
     apiVersion: batch/v1
     kind: Job
     metadata:
@@ -215,19 +215,18 @@ data:
     apiVersion: v1
     clusters:
     - cluster:
-        certificate-authority-data: LSCg==
-        server: https://n:6443
-      name: hyfast
+        certificate-authority-data: LST
+      name: kubernetes
     contexts:
     - context:
-        cluster: hyfast
+        cluster: kubernetes
         user: kubernetes-admin
-      name: kubernetes-admin@hyfast
-    current-context: kubernetes-admin@hyfast
+      name: kubernetes-admin@kubernetes
+    current-context: kubernetes-admin@kubernetes
     kind: Config
     preferences: {}
     users:
     - name: kubernetes-admin
       user:
-        client-certificate-data: LCg==
-        client-key-data: LSLQo=
+        client-certificate-data: GXVGpkTtLS0tCg==
+        client-key-data: LS0tJjMjVHBDRytVY1UVXlDRXlUNmtLQo=
