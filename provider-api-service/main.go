@@ -54,6 +54,16 @@ type KubeConfigMessage struct {
 	Name       string `json:"Name"`
 	KubeConfig string `json:"KubeConfig"`
 }
+type KubeConfigStorage struct {
+	Name       string
+	Namespace  string
+	KubeConfig string
+	Path       string
+}
+
+// Save kubeconfig
+var listOfKubeConfigStorage []KubeConfigStorage
+
 type Message struct {
 	Namespace string `json:"Namespace,omitempty"`
 	Name      string `json:"Name,omitempty"`
@@ -93,6 +103,16 @@ type Machine struct {
 
 type Machines struct {
 	List []Machine `json:"machines,omitempty"`
+}
+
+// Struct of Incident list
+// type IncidentList struct {
+
+// }
+type PredictionMessage struct {
+	Time             string   `json:"time,omitempty"`
+	Status           string   `json:"status,omitempty"`
+	PotentialObjects []string `json:"potential_objects,omitempty"`
 }
 
 var listYamlFileClusterAPI []string
@@ -325,24 +345,31 @@ func main() {
 		if len(clusterName) < 1 {
 			fmt.Println("Missing clustername field in request")
 		}
+		var nameSpace string
+		nameSpace = r.Header.Get("namespace")
+		if len(nameSpace) < 1 {
+			fmt.Println("Missing nameSpace field in request")
+		}
 		prg := "./clusterctl"
 		arg1 := "get"
 		arg2 := "kubeconfig"
+		arg3 := "-n"
 		// argKubeConfig := "--kubeconfig " + kubeConfig
-		cmd := exec.Command(prg, arg1, arg2, clusterName)
+		cmd := exec.Command(prg, arg1, arg2, clusterName, arg3, nameSpace)
 		// Get the result from kubectl and send to Infra Controller
 		stdout, err := cmd.Output()
 
 		if err != nil {
+			fmt.Println("Error while get kubeconfig: ", string(stdout))
 			fmt.Println(err.Error())
 			// log.Fatal(err)
 			return
-		}
-		var kubeConfigRaw = KubeConfigMessage{Name: clusterName, KubeConfig: string(stdout)}
-		jsongetClusterResult, errorConvertJson := json.Marshal(kubeConfigRaw)
-		if errorConvertJson != nil {
-			fmt.Println("error when convert JSON", jsongetClusterResult, errorConvertJson)
-
+		} else {
+			var kubeConfigRaw = KubeConfigMessage{Name: clusterName, KubeConfig: string(stdout)}
+			jsongetClusterResult, errorConvertJson := json.Marshal(kubeConfigRaw)
+			if errorConvertJson != nil {
+				fmt.Println("error when convert JSON", jsongetClusterResult, errorConvertJson)
+			}
 		}
 
 		w.Write([]byte(string(stdout)))
@@ -484,6 +511,25 @@ func main() {
 			return
 		}
 		w.Write([]byte(string(stdout1)))
+	})
+	r.Post("/recovery", func(w http.ResponseWriter, r *http.Request) {
+
+		fmt.Println("Received Recovery Request")
+		httpPostBody, err := ioutil.ReadAll(r.Body) //<--- here!
+		fmt.Println(string(httpPostBody))
+
+		var predictMessage PredictionMessage
+		errorConvertJson := json.Unmarshal(httpPostBody, &predictMessage)
+		if errorConvertJson != nil {
+			fmt.Println("Error when convert the json body")
+			return
+		}
+
+		if err != nil {
+			// fmt.Println(fmt.Sprint(err) + ": " + string(stdout1))
+			return
+		}
+		w.Write([]byte(string("Recovering....")))
 	})
 	fmt.Println("Start Server at port", serverPort)
 	http.ListenAndServe(serverPort, r)
@@ -697,6 +743,28 @@ func saveContentToYamlFile(content string, fileName string) string {
 	return bashFilePath
 }
 
+// Save kubeconfig file
+func saveContentToKubeconfigFile(content string, fileName string) string {
+	// var fileName string
+	tempFolder := createTempFolder(fileName)
+
+	bashFilePath := filepath.Join(tempFolder, fileName)
+
+	fmt.Println("Write  kubeconfig file", bashFilePath)
+	// Check is sh file include #!/bin/sh part
+	// contentStr := string(content)
+	var err error
+
+	err = os.WriteFile(bashFilePath, []byte(content), 0777)
+
+	if err != nil {
+		fmt.Println(err.Error())
+		return "error"
+	}
+
+	return bashFilePath
+}
+
 func getAndParseNamespaceForCLusterApi() string {
 	var namespaceClusterApi string
 	cloudYamlB64 := getEnv("OPENSTACK_CLOUD_YAML_B64", "default")
@@ -769,4 +837,57 @@ func runK8sJobs(yamlTemplate string) {
 		fmt.Println(fmt.Sprint(err) + ": " + string(stdout1))
 		return
 	}
+}
+
+// Function for recovery
+func getKubeConfigFromClusterName(clusterName string, nameSpace string) (string, bool) {
+	prg := "./clusterctl"
+	arg1 := "get"
+	arg2 := "kubeconfig"
+	arg3 := "-n"
+	if len(clusterName) < 1 {
+		return "cluster name is empty", true
+	}
+
+	// kubectl get kubeconfig clusterName -n nameSpace
+	cmd := exec.Command(prg, arg1, arg2, clusterName, arg3, nameSpace)
+
+	stdout, err := cmd.Output()
+
+	if err != nil {
+		fmt.Println(err.Error())
+		// log.Fatal(err)
+		fmt.Println("Error while executing get kubeconfig command: ", string(stdout))
+		return "get kubeconfig error", true
+	}
+	return string(stdout), false
+}
+func getKubeconfigPath(clusterName string, nameSpace string) (string, bool) {
+	for _, kubecf := range listOfKubeConfigStorage {
+		if kubecf.Name == clusterName {
+			return kubecf.Path, false
+		}
+	}
+
+	kubecf, err := getKubeConfigFromClusterName(clusterName, nameSpace)
+	if err {
+		fmt.Println("Error when get kubeconfig")
+		return "Error when get kubeconfig", true
+	} else {
+		path := saveContentToKubeconfigFile(kubecf, "config")
+		if path == "error" {
+			fmt.Println("Error when save kubeconfig file")
+			return path, true
+		}
+		cfStg := KubeConfigStorage{clusterName, nameSpace, kubecf, path}
+		listOfKubeConfigStorage = append(listOfKubeConfigStorage, cfStg)
+		return path, false
+	}
+}
+func recoveryJob(clusterName string) (string, bool) {
+	// 1. get kubeconfig corressponding with cluster name
+	// 2. Check VM in cluster list
+	// 3. Create Back up VM
+	// 4. Join the Backup Node to cluster
+	// 5. Receive incident => Use backup Node
 }
