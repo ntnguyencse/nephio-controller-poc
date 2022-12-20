@@ -20,11 +20,13 @@ spec:
           kubernetes.io/hostname: hyfast-mgmt01
       containers:
       - name: provider-api-service-deployment
-        image: ntnguyencse/provider-api-service:v1.30
+        image: ntnguyencse/provider-api-service:v1.42
         imagePullPolicy: Always
         env:
           - name: KUBECONFIG
             value: /kubeconfig/config
+          - name: MANAGEMENT_KUBECONFIG
+            value: /mgt-kubeconfig/management
           - name: OPENSTACK_FAILURE_DOMAIN
             valueFrom:
               configMapKeyRef:
@@ -86,12 +88,17 @@ spec:
         volumeMounts:
         - name: kubeconfig
           mountPath: /kubeconfig
+        - name: mgt-kubeconfig
+          mountPath: /mgt-kubeconfig
         - name: job-template
           mountPath: /job-template
       volumes:
       - name: kubeconfig
         configMap: 
           name: clusterapi-management-kubeconfig
+      - name: mgt-kubeconfig
+        configMap: 
+          name: cluster-management-kubeconfig
       - name: job-template
         configMap:
           name: job-k8s-template
@@ -141,15 +148,15 @@ data:
   # property-like keys; each key maps to a simple value
   openstack-failure-domain : "compute"
   openstack-image-name: "ubuntu-k8s-1.24"
-  openstack-external-network-id: "faa689f85d86"
+  openstack-external-network-id: "faa68d67-0441-4749-895b-95ac49f85d86"
   openstack-control-plane-machine-flavor: "m1.medium"
-  openstack-dns-nameservers: "192."
+  openstack-dns-nameservers: "192.168.40.247"
   openstack-node-machine-flavor: "m1.medium"
   openstack-ssh-key-name: "clusterapi"
-  openstack-cloud: "soud"
+  openstack-cloud: "starlab-cloud"
   openstack-cloud-cacert-b64: "Cg=="
-  openstack-cloud-provider-conf-b64: "W0U9InN0YXJsYWIiCIK"
-  openstack-cloud-yaml-b64: "Y2xvdWAgmFtZTox0Cg=="
+  openstack-cloud-provider-conf-b64: "W0dk9uZSIK"
+  openstack-cloud-yaml-b64: "Y2xvdWRzOgx0Cg=="
 ---
 apiVersion: v1
 kind: ConfigMap
@@ -168,10 +175,10 @@ data:
       template:
         spec:
           nodeSelector:
-            kubernetes.io/hostname=hyfast-mgmt01
+            kubernetes.io/hostname: hyfast-mgmt01
           containers:
           - name: job
-            image: dcnstarlab/job-cluster:latest
+            image: dcnstarlab/job-cluster:v1.2
             env:
             - name: CLUSTER_NAME
               value: placeholder-cluster-name
@@ -215,18 +222,45 @@ data:
     apiVersion: v1
     clusters:
     - cluster:
-        certificate-authority-data: LST
-      name: kubernetes
+        certificate-authority-data: LS0tLS1LQo=
+        server: https://109:6443
+      name: starlab-edge-4
     contexts:
     - context:
-        cluster: kubernetes
+        cluster: starlab-edge-4
+        user: starlab-edge-4-admin
+      name: starlab-edge-4-admin@starlab-edge-4
+    current-context: starlab-edge-4-admin@starlab-edge-4
+    kind: Config
+    preferences: {}
+    users:
+    - name: starlab-edge-4-admin
+      user:
+        client-certificate-data: LS0tLQo=
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: cluster-management-kubeconfig
+  namespace: nephio-system
+data:
+  management: |
+    apiVersion: v1
+    clusters:
+    - cluster:
+        certificate-authority-data: LS0tLg==
+        server: https://hn:6443
+      name: hyfast
+    contexts:
+    - context:
+        cluster: hyfast
         user: kubernetes-admin
-      name: kubernetes-admin@kubernetes
-    current-context: kubernetes-admin@kubernetes
+      name: kubernetes-admin@hyfast
+    current-context: kubernetes-admin@hyfast
     kind: Config
     preferences: {}
     users:
     - name: kubernetes-admin
       user:
-        client-certificate-data: GXVGpkTtLS0tCg==
-        client-key-data: LS0tJjMjVHBDRytVY1UVXlDRXlUNmtLQo=
+        client-certificate-data: LS0tg==
+        client-key-data: LS0o=

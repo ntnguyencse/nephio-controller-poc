@@ -32,6 +32,7 @@ const k8sJobsTemplateFile string = "/job-template/job-template.yaml"
 
 var kubeConfig string
 var namespaceClusterAPI string
+var managementKubeConfig string
 
 // Structure for Parse cloud yaml file
 type CloudYaml struct {
@@ -156,11 +157,17 @@ func main() {
 	// kubectlExecutablePath, _ := exec.LookPath("kubectl")
 
 	// currentListCluster := list.newList()
+	namespaceClusterAPI = getAndParseNamespaceForCLusterApi()
+	fmt.Println("Print namespaceClusterAPI: ", namespaceClusterAPI)
 	r := chi.NewRouter()
 	r.Use(middleware.RequestID)
 	r.Use(middleware.Logger)
 	r.Use(middleware.Recoverer)
-	fmt.Println("KubeConfig file path" + os.Getenv("KUBECONFIG"))
+
+	kubeConfig = getEnv("KUBECONFIG", "/kubeconfig/config")
+	managementKubeConfig = getEnv("MANAGEMENT_KUBECONFIG", "/kubeconfig/management")
+	fmt.Println("MGT KUBECONFIG: ", managementKubeConfig)
+	fmt.Println("KubeConfig file path" + kubeConfig)
 	r.Get("/test", func(w http.ResponseWriter, r *http.Request) {
 		// construct `go version` command
 		// cmdGoVer := &exec.Cmd{
@@ -576,14 +583,17 @@ func generateClusterYamlFile(record ClusterRecord) (string, bool) {
 		fmt.Println(err.Error())
 		return string(stdout), false
 	}
-	fmt.Println("stdout", string(stdout))
+	// Add CNI label
+	stringReplacedCNI := string(stdout)
+	stringReplacedCNI = strings.Replace(stringReplacedCNI, "spec:\n  clusterNetwork:", "  labels:\n    cni: flannel\nspec:\n  clusterNetwork:", 1)
+	fmt.Println("stringReplacedCNI", string(stringReplacedCNI))
 	// Create folder
 	// And write to yaml file
 	tempFolder := createTempFolder(record.Name)
 	fmt.Println("Create  temp folder", tempFolder)
 	templateClusterFile := filepath.Join(tempFolder, record.Name)
 	fmt.Println("Create  temp file", templateClusterFile)
-	err = os.WriteFile(templateClusterFile, stdout, 0777)
+	err = os.WriteFile(templateClusterFile, []byte(stringReplacedCNI), 0777)
 	fmt.Println("Write  temp file", templateClusterFile)
 	if err != nil {
 		fmt.Println(err.Error())
@@ -601,15 +611,15 @@ func generateClusterYamlFile(record ClusterRecord) (string, bool) {
 		return string(stdout2), false
 	}
 	// Add CNI meta data
-	fmt.Println("Replace CNI label...")
-	cmd2 := exec.Command("sed", "-i", "0,/spec:/s//  labels:\n    cni: flannel\nspec:/", templateClusterFile)
-	fmt.Println("Print command: ", cmd2.Path, cmd2.Args, cmd2.Env)
-	stdout3, err3 := cmd2.Output()
-	if err3 != nil {
-		fmt.Println("Error occurred when add CNI label")
-		fmt.Println("stdout3", string(stdout3))
-		return string(stdout3), false
-	}
+	// fmt.Println("Replace CNI label...")
+	// cmd2 := exec.Command("sed", "-i", "\"s/spec:\\n  clusterNetwork:/  labels:\\n    cni: flannel\\nspec:\\n  clusterNetwork:/\"", templateClusterFile)
+	// fmt.Println("Print command: ", cmd2.Path, cmd2.Args, cmd2.Env)
+	// stdout3, err3 := cmd2.Output()
+	// if err3 != nil {
+	// 	fmt.Println("Error occurred when add CNI label")
+	// 	fmt.Println("stdout3", string(stdout3))
+	// 	return string(stdout3), false
+	// }
 	fmt.Println("Print file after replace CNI.. ")
 	content, err := ioutil.ReadFile(templateClusterFile)
 
@@ -830,7 +840,7 @@ func runK8sJobs(templateFilePath string, clusterName string) {
 	arg1 := "apply"
 	arg2 := "-f"
 	fmt.Println("Applying k8s Job  file: ", stringHttpPostBody, "\n------------------------------\n")
-	cmd := exec.Command(prg, arg1, arg2, filePath, argKubeConfig, kubeConfig)
+	cmd := exec.Command(prg, arg1, arg2, filePath, argKubeConfig, managementKubeConfig)
 	// Get the result from kubectl and send to Infra Controller
 	fmt.Println("Print command: ", cmd.Path, cmd.Args, cmd.Env)
 	stdout1, err := cmd.Output()
