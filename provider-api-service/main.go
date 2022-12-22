@@ -612,7 +612,7 @@ func generateClusterYamlFile(record ClusterRecord) (string, bool) {
 	if len(podCIDR) < 1 {
 		podCIDR = "10.244.0.0"
 	}
-	stringReplacedPodCIDR := strings.Replace(stringReplacedCNI, "192.168.0.0", PodCIDR, 1)
+	stringReplacedPodCIDR := strings.Replace(stringReplacedCNI, "192.168.0.0", podCIDR, 1)
 	// Create folder
 	// And write to yaml file
 	tempFolder := createTempFolder(record.Name)
