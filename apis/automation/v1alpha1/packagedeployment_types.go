@@ -76,9 +76,9 @@ type PackageDeploymentSpec struct {
 	// Control Plane Machine Count
 	ControlPlaneMachineCount string `json:"controlPlaneMachineCount,omitempty"`
 	// Pod CIDR K8s
-	PodCIDR string `json:"podCDIR,omitempty"`
+	PodCIDR string `json:"podCIDR,omitempty"`
 	// CNI of Kubernetes Cluster
-	CNILabel string `json:"cniLabel,omitempty"`
+	CNILabel string `json:"cni,omitempty"`
 	// Control plane flavor
 	ControlPlaneMachineFlavor string `json:"controlPlaneMachineFlavor,omitempty"`
 	KubernetesMachineFlavor   string `json:"kubernetesMachineFlavor,omitempty"`

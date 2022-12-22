@@ -77,7 +77,7 @@ type ClusterConfigurations struct {
 	KubernetesVersion         string `json:"KubernetesVersion"`
 	ControlPlaneMachineCount  string `json:"ControlPlaneMachineCount"`
 	KubernetesMachineCount    string `json:"KubernetesMachineCount"`
-	PodCIDR                   string `json:"podCDIR,omitempty"`
+	PodCIDR                   string `json:"podCIDR,omitempty"`
 	CNILabel                  string `json:"cniLabel,omitempty"`
 	ControlPlaneMachineFlavor string `json:"controlPlaneMachineFlavor,omitempty"`
 	KubernetesMachineFlavor   string `json:"kubernetesMachineFlavor,omitempty"`
@@ -90,11 +90,11 @@ type ClusterRecord struct {
 	Provider                  string            `json:"provider,omitempty"`
 	ProvisionMethod           string            `json:"provisionMethod,omitempty"`
 	Namespace                 string            `json:"namespace,omitempty"`
-	KubernetesVersion         string            `json:"pubernetesVersion,omitempty"`
+	KubernetesVersion         string            `json:"kubernetesVersion,omitempty"`
 	ControlPlaneMachineCount  string            `json:"controlPlaneMachineCount,omitempty"`
 	KubernetesMachineCount    string            `json:"kubernetesMachineCount,omitempty"`
-	PodCIDR                   string            `json:"podCDIR,omitempty"`
-	CNILabel                  string            `json:"cniLabel,omitempty"`
+	PodCIDR                   string            `json:"podCIDR,omitempty"`
+	CNILabel                  string            `json:"cni,omitempty"`
 	ControlPlaneMachineFlavor string            `json:"controlPlaneMachineFlavor,omitempty"`
 	KubernetesMachineFlavor   string            `json:"kubernetesMachineFlavor,omitempty"`
 	CreatedTime               time.Time         `json:"createdTime,omitempty"`
@@ -413,7 +413,7 @@ func main() {
 		// defer r.Body.Close()
 		fmt.Println("Received create new Cluster Request")
 		httpPostBody, err := ioutil.ReadAll(r.Body) //<--- here!
-
+		fmt.Println("Print body of request:\n")
 		if err != nil {
 			fmt.Println(err)
 		}
@@ -605,9 +605,14 @@ func generateClusterYamlFile(record ClusterRecord) (string, bool) {
 	}
 	// Add CNI label
 	stringReplacedCNI := string(stdout)
-	stringReplacedCNI = strings.Replace(stringReplacedCNI, "spec:\n  clusterNetwork:", "  labels:\n    cni: flannel\nspec:\n  clusterNetwork:", 1)
+	cniReplaceString := "  labels:\n    cni: " + record.CNILabel + "\nspec:\n  clusterNetwork:"
+	stringReplacedCNI = strings.Replace(stringReplacedCNI, "spec:\n  clusterNetwork:", cniReplaceString, 1)
 	// Replace Pod CIDR
-	stringReplacedPodCIDR := strings.Replace(stringReplacedCNI, "192.168.0.0", record.PodCIDR, 1)
+	podCIDR := record.PodCIDR
+	if len(podCIDR) < 1 {
+		podCIDR = "10.244.0.0"
+	}
+	stringReplacedPodCIDR := strings.Replace(stringReplacedCNI, "192.168.0.0", PodCIDR, 1)
 	// Create folder
 	// And write to yaml file
 	tempFolder := createTempFolder(record.Name)
@@ -621,7 +626,7 @@ func generateClusterYamlFile(record ClusterRecord) (string, bool) {
 		// log.Fatal(err)
 		return "error", false
 	}
-	// Replace CDIR block
+	// Replace CIDR block
 	// sed 's/192.168.0.0/10.244.0.0/' templateClusterFile
 	// cmd1 := exec.Command("sed", "-i", "s/192.168.0.0/10.244.0.0/", templateClusterFile)
 	// stdout2, err2 := cmd1.Output()

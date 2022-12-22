@@ -49,11 +49,11 @@ spec:
               kubernetesVersion:
                 description: Kubernetes Version
                 type: string
-              podCDIR:
+              podCIDR:
                 description: POD CIDR in K8s cluster
                 type: string
-              cniLabel:
-                description: CNI Label 
+              cni:
+                description: CNI
                 type: string
               controlPlaneMachineFlavor:
                 description: Size of control plane flavor

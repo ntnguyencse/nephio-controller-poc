@@ -100,13 +100,13 @@ type ClusterRecord struct {
 	Provider                 string            `json:"provider,omitempty"`
 	ProvisionMethod          string            `json:"provisionMethod,omitempty"`
 	Namespace                string            `json:"namespace,omitempty"`
-	KubernetesVersion        string            `json:"pubernetesVersion,omitempty"`
+	KubernetesVersion        string            `json:"kubernetesVersion,omitempty"`
 	ControlPlaneMachineCount string            `json:"controlPlaneMachineCount,omitempty"`
 	KubernetesMachineCount   string            `json:"kubernetesMachineCount,omitempty"`
 	// Pod CIDR K8s
-	PodCIDR string `json:"podCDIR,omitempty"`
+	PodCIDR string `json:"podCIDR,omitempty"`
 	// CNI of Kubernetes Cluster
-	CNILabel string `json:"cniLabel,omitempty"`
+	CNILabel string `json:"cni,omitempty"`
 	// Control plane flavor
 	ControlPlaneMachineFlavor string `json:"controlPlaneMachineFlavor,omitempty"`
 	KubernetesMachineFlavor   string `json:"kubernetesMachineFlavor,omitempty"`

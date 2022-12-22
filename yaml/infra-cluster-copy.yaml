@@ -15,8 +15,8 @@ spec:
   kubernetesMachineCount: "5"
   provider: OpenStack
   provisionMethod: Cluster-API
-  podCDIR: "10.244.0.0"
-  cniLabel: "flannel"
+  podCIDR: "10.244.0.0"
+  cni: "flannel"
   controlPlaneMachineFlavor: "m1.medium"
   kubernetesMachineFlavor: "m1.medium"
   packageRef:

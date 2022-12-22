@@ -60,11 +60,11 @@ type ClusterRecord struct {
 	Provider                  string            `json:"provider,omitempty"`
 	ProvisionMethod           string            `json:"provisionMethod,omitempty"`
 	Namespace                 string            `json:"namespace,omitempty"`
-	KubernetesVersion         string            `json:"pubernetesVersion,omitempty"`
+	KubernetesVersion         string            `json:"kubernetesVersion,omitempty"`
 	ControlPlaneMachineCount  string            `json:"controlPlaneMachineCount,omitempty"`
 	KubernetesMachineCount    string            `json:"kubernetesMachineCount,omitempty"`
-	PodCIDR                   string            `json:"podCDIR,omitempty"`
-	CNILabel                  string            `json:"cniLabel,omitempty"`
+	PodCIDR                   string            `json:"podCIDR,omitempty"`
+	CNILabel                  string            `json:"cni,omitempty"`
 	ControlPlaneMachineFlavor string            `json:"controlPlaneMachineFlavor,omitempty"`
 	KubernetesMachineFlavor   string            `json:"kubernetesMachineFlavor,omitempty"`
 	CreatedTime               time.Time         `json:"createdTime,omitempty"`
@@ -84,7 +84,7 @@ type InfraRecord struct {
 	KubernetesVersion         string            `json:"kubernetesVersion,omitempty"`
 	ControlPlaneMachineCount  string            `json:"controlPlaneMachineCount,omitempty"`
 	KubernetesMachineCount    string            `json:"kubernetesMachineCount,omitempty"`
-	PodCIDR                   string            `json:"podCDIR,omitempty"`
+	PodCIDR                   string            `json:"podCIDR,omitempty"`
 	CNILabel                  string            `json:"cniLabel,omitempty"`
 	ControlPlaneMachineFlavor string            `json:"controlPlaneMachineFlavor,omitempty"`
 	KubernetesMachineFlavor   string            `json:"kubernetesMachineFlavor,omitempty"`
@@ -519,6 +519,8 @@ func mappingValueofClusterToClusterRecord(newCluster ClusterConfigurations, list
 func sendRequestCreateNewCluster(config ClusterRecord, url string) bool {
 	// Send request
 	jsonBytesData, error := json.Marshal(config)
+	fmt.Println("Print body of request:\n", string(jsonBytesData))
+
 	if error != nil {
 		return false
 	}
