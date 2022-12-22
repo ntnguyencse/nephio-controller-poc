@@ -73,24 +73,32 @@ type Message struct {
 	Age       string `json:"Age,omitempty"`
 }
 type ClusterConfigurations struct {
-	ClusterName              string `json:"ClusterName"`
-	KubernetesVersion        string `json:"KubernetesVersion"`
-	ControlPlaneMachineCount string `json:"ControlPlaneMachineCount"`
-	KubernetesMachineCount   string `json:"KubernetesMachineCount"`
+	ClusterName               string `json:"ClusterName"`
+	KubernetesVersion         string `json:"KubernetesVersion"`
+	ControlPlaneMachineCount  string `json:"ControlPlaneMachineCount"`
+	KubernetesMachineCount    string `json:"KubernetesMachineCount"`
+	PodCIDR                   string `json:"podCDIR,omitempty"`
+	CNILabel                  string `json:"cniLabel,omitempty"`
+	ControlPlaneMachineFlavor string `json:"controlPlaneMachineFlavor,omitempty"`
+	KubernetesMachineFlavor   string `json:"kubernetesMachineFlavor,omitempty"`
 }
 type ClusterRecord struct {
-	Name                     string            `json:"name,omitempty"`
-	InfraType                string            `json:"infraType,omitempty"`
-	Labels                   map[string]string `json:"labels,omitempty"`
-	Repository               string            `json:"repository,omitempty"`
-	Provider                 string            `json:"provider,omitempty"`
-	ProvisionMethod          string            `json:"provisionMethod,omitempty"`
-	Namespace                string            `json:"namespace,omitempty"`
-	KubernetesVersion        string            `json:"pubernetesVersion,omitempty"`
-	ControlPlaneMachineCount string            `json:"controlPlaneMachineCount,omitempty"`
-	KubernetesMachineCount   string            `json:"kubernetesMachineCount,omitempty"`
-	CreatedTime              time.Time         `json:"createdTime,omitempty"`
-	UpdatedTime              time.Time         `json:"updatedTime,omitempty"`
+	Name                      string            `json:"name,omitempty"`
+	InfraType                 string            `json:"infraType,omitempty"`
+	Labels                    map[string]string `json:"labels,omitempty"`
+	Repository                string            `json:"repository,omitempty"`
+	Provider                  string            `json:"provider,omitempty"`
+	ProvisionMethod           string            `json:"provisionMethod,omitempty"`
+	Namespace                 string            `json:"namespace,omitempty"`
+	KubernetesVersion         string            `json:"pubernetesVersion,omitempty"`
+	ControlPlaneMachineCount  string            `json:"controlPlaneMachineCount,omitempty"`
+	KubernetesMachineCount    string            `json:"kubernetesMachineCount,omitempty"`
+	PodCIDR                   string            `json:"podCDIR,omitempty"`
+	CNILabel                  string            `json:"cniLabel,omitempty"`
+	ControlPlaneMachineFlavor string            `json:"controlPlaneMachineFlavor,omitempty"`
+	KubernetesMachineFlavor   string            `json:"kubernetesMachineFlavor,omitempty"`
+	CreatedTime               time.Time         `json:"createdTime,omitempty"`
+	UpdatedTime               time.Time         `json:"updatedTime,omitempty"`
 }
 type Machine struct {
 	Namespace  string `json:"namespace,omitempty"`
@@ -384,8 +392,20 @@ func main() {
 		w.Write([]byte(string(stdout)))
 	})
 	r.Get("/testCreateNewCluster", func(w http.ResponseWriter, r *http.Request) {
-		runK8sJobs(k8sJobsTemplateFile, "test")
-		w.Write([]byte(string("Creating k8s Job: ")))
+		clusterConfig := ClusterRecord{
+			"default", "minimal", map[string]string{"none": "none"}, "default", "default", "default", "default", "v1.24.0", "1", "1", "10.244.0.0", "flannel", "m1.medium", "m1.medium", time.Now(), time.Now(),
+		}
+		clusterYamlFile, ok := generateClusterYamlFile(clusterConfig)
+		fmt.Println("Done generate cluster: ", ok)
+		fmt.Println("Path file: ", clusterYamlFile)
+		content, err := ioutil.ReadFile(clusterYamlFile)
+
+		if err != nil {
+			fmt.Println("Cant open file")
+		} else {
+			fmt.Println(string(content))
+		}
+		w.Write([]byte(string("Generate cluster:\n ")))
 	})
 	// Create New cluster in OPENSTACK through call clusterASPI
 	r.Post("/createNewCluster", func(w http.ResponseWriter, r *http.Request) {
@@ -586,14 +606,15 @@ func generateClusterYamlFile(record ClusterRecord) (string, bool) {
 	// Add CNI label
 	stringReplacedCNI := string(stdout)
 	stringReplacedCNI = strings.Replace(stringReplacedCNI, "spec:\n  clusterNetwork:", "  labels:\n    cni: flannel\nspec:\n  clusterNetwork:", 1)
-	fmt.Println("stringReplacedCNI", string(stringReplacedCNI))
+	// Replace Pod CIDR
+	stringReplacedPodCIDR := strings.Replace(stringReplacedCNI, "192.168.0.0", record.PodCIDR, 1)
 	// Create folder
 	// And write to yaml file
 	tempFolder := createTempFolder(record.Name)
 	fmt.Println("Create  temp folder", tempFolder)
 	templateClusterFile := filepath.Join(tempFolder, record.Name)
 	fmt.Println("Create  temp file", templateClusterFile)
-	err = os.WriteFile(templateClusterFile, []byte(stringReplacedCNI), 0777)
+	err = os.WriteFile(templateClusterFile, []byte(stringReplacedPodCIDR), 0777)
 	fmt.Println("Write  temp file", templateClusterFile)
 	if err != nil {
 		fmt.Println(err.Error())
@@ -602,14 +623,14 @@ func generateClusterYamlFile(record ClusterRecord) (string, bool) {
 	}
 	// Replace CDIR block
 	// sed 's/192.168.0.0/10.244.0.0/' templateClusterFile
-	cmd1 := exec.Command("sed", "-i", "s/192.168.0.0/10.244.0.0/", templateClusterFile)
-	stdout2, err2 := cmd1.Output()
-	if err2 != nil {
-		fmt.Println("Error occurred when replace CIDR block")
-		fmt.Println("stdout2", string(stdout2))
-		fmt.Println(err.Error())
-		return string(stdout2), false
-	}
+	// cmd1 := exec.Command("sed", "-i", "s/192.168.0.0/10.244.0.0/", templateClusterFile)
+	// stdout2, err2 := cmd1.Output()
+	// if err2 != nil {
+	// 	fmt.Println("Error occurred when replace CIDR block")
+	// 	fmt.Println("stdout2", string(stdout2))
+	// 	fmt.Println(err.Error())
+	// 	return string(stdout2), false
+	// }
 	// Add CNI meta data
 	// fmt.Println("Replace CNI label...")
 	// cmd2 := exec.Command("sed", "-i", "\"s/spec:\\n  clusterNetwork:/  labels:\\n    cni: flannel\\nspec:\\n  clusterNetwork:/\"", templateClusterFile)
@@ -620,14 +641,14 @@ func generateClusterYamlFile(record ClusterRecord) (string, bool) {
 	// 	fmt.Println("stdout3", string(stdout3))
 	// 	return string(stdout3), false
 	// }
-	fmt.Println("Print file after replace CNI.. ")
-	content, err := ioutil.ReadFile(templateClusterFile)
+	// fmt.Println("Print file after replace CNI.. ")
+	// content, err := ioutil.ReadFile(templateClusterFile)
 
-	if err != nil {
-		fmt.Println("Cant open file")
-	} else {
-		fmt.Println(string(content))
-	}
+	// if err != nil {
+	// 	fmt.Println("Cant open file")
+	// } else {
+	// 	fmt.Println(string(content))
+	// }
 
 	//
 	return templateClusterFile, true
@@ -906,11 +927,91 @@ func getKubeconfigPath(clusterName string, nameSpace string) (string, bool) {
 		return path, false
 	}
 }
-func recoveryJob(clusterName string) (string, bool) {
+func recoveryJob(clusterName string, templateFilePath string) (string, bool) {
 	// 1. get kubeconfig corressponding with cluster name
+	kubeConfigPath, errgetKubeconfig := getKubeconfigPath(clusterName, namespaceClusterAPI)
+	if !errgetKubeconfig {
+		fmt.Println("Error when get KubeConfig Path", kubeConfigPath)
+	}
+	// Create config map of kubeconfig
+	configMapName := clusterName
+	kubectlarg := "./kubectl"
+	createArg := "create"
+	configMapKeyWord := "configmap"
+	fromFileArg := "--from-file=config=" + kubeConfigPath
+	argKubeConfig := "--kubeconfig"
+	jobName := "recovery-job-cm" + RandomString(6)
+	clusterNamespace := namespaceClusterAPI
+
+	cmd := exec.Command(kubectlarg, createArg, configMapKeyWord, configMapName, fromFileArg, "--namespace=nephio-system", argKubeConfig, kubeConfig)
+	fmt.Println("Print command: ", cmd.Path, cmd.Args, cmd.Env)
+	stdout, err := cmd.Output()
+
+	if err != nil {
+		fmt.Println("Error creating kubeconfig config Map")
+		// Print Error and details of error happend
+		fmt.Println(fmt.Sprint(err) + ": " + string(stdout))
+		// log.Fatal(err)
+	}
+	// Replace some variables in job file
+
 	// 2. Check VM in cluster list
+
 	// 3. Create Back up VM
 	// 4. Join the Backup Node to cluster
 	// 5. Receive incident => Use backup Node
+	fmt.Println("Begin Run Recovery Job")
+	// Read file
+	var stringHttpPostBody string
+	templateFile, err := os.ReadFile(templateFilePath)
+	if err != nil {
+		fmt.Println("Error when read k8s job template file")
+		// return
+	} else {
+		fmt.Println("Use default k8s jobs template file")
+		stringHttpPostBody = yamlFileTemplate.JobsTemplate //string(httpPostBody)
+	}
+	// fmt.Print(string(dat))
+	//
+
+	// Generate job name. env values
+	stringHttpPostBody = string(templateFile)
+
+	stringHttpPostBody = strings.Replace(stringHttpPostBody, "placeholder-name", jobName, 1)
+	stringHttpPostBody = strings.Replace(stringHttpPostBody, "placeholder-cluster-name", clusterName, 1)
+	stringHttpPostBody = strings.Replace(stringHttpPostBody, "placeholder-cluster-namespace", clusterNamespace, 1)
+	stringHttpPostBody = strings.Replace(stringHttpPostBody, "TARGET_KUBECONFIG", configMapName, 1)
+	//
+	// Save content to file
+	filePath := saveContentToYamlFile(stringHttpPostBody, "jobs")
+	if filePath == "error" {
+		fmt.Println("Error when save content to yaml file")
+		return "error", true
+	}
+	fmt.Println("Print k8s Jobs path: ", filePath)
+	prg := "./kubectl"
+
+	arg1 := "apply"
+	arg2 := "-f"
+	fmt.Println("Applying k8s Job  file: ", stringHttpPostBody, "\n------------------------------\n")
+	cmd1 := exec.Command(prg, arg1, arg2, filePath, argKubeConfig, managementKubeConfig)
+	// Get the result from kubectl and send to Infra Controller
+	fmt.Println("Print command: ", cmd1.Path, cmd1.Args, cmd1.Env)
+	stdout1, err := cmd1.Output()
+
+	if err != nil {
+		fmt.Println("Error applying K8s Jobs occurred")
+		// Print Error and details of error happend
+		fmt.Println(fmt.Sprint(err) + ": " + string(stdout1))
+		// log.Fatal(err)
+	}
+
+	fmt.Println("Output kubectl apply -f ", string(stdout1))
+	// stdout, err := cmd.Output()
+
+	if err != nil {
+		fmt.Println(fmt.Sprint(err) + ": " + string(stdout1))
+		return "error", false
+	}
 	return "temp", true
 }

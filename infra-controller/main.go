@@ -53,35 +53,43 @@ type ClusterConfigurationsList struct {
 	Items []ClusterConfigurations
 }
 type ClusterRecord struct {
-	Name                     string            `json:"name,omitempty"`
-	InfraType                string            `json:"infraType,omitempty"`
-	Labels                   map[string]string `json:"labels,omitempty"`
-	Repository               string            `json:"repository,omitempty"`
-	Provider                 string            `json:"provider,omitempty"`
-	ProvisionMethod          string            `json:"provisionMethod,omitempty"`
-	Namespace                string            `json:"namespace,omitempty"`
-	KubernetesVersion        string            `json:"pubernetesVersion,omitempty"`
-	ControlPlaneMachineCount string            `json:"controlPlaneMachineCount,omitempty"`
-	KubernetesMachineCount   string            `json:"kubernetesMachineCount,omitempty"`
-	CreatedTime              time.Time         `json:"createdTime,omitempty"`
-	UpdatedTime              time.Time         `json:"updatedTime,omitempty"`
+	Name                      string            `json:"name,omitempty"`
+	InfraType                 string            `json:"infraType,omitempty"`
+	Labels                    map[string]string `json:"labels,omitempty"`
+	Repository                string            `json:"repository,omitempty"`
+	Provider                  string            `json:"provider,omitempty"`
+	ProvisionMethod           string            `json:"provisionMethod,omitempty"`
+	Namespace                 string            `json:"namespace,omitempty"`
+	KubernetesVersion         string            `json:"pubernetesVersion,omitempty"`
+	ControlPlaneMachineCount  string            `json:"controlPlaneMachineCount,omitempty"`
+	KubernetesMachineCount    string            `json:"kubernetesMachineCount,omitempty"`
+	PodCIDR                   string            `json:"podCDIR,omitempty"`
+	CNILabel                  string            `json:"cniLabel,omitempty"`
+	ControlPlaneMachineFlavor string            `json:"controlPlaneMachineFlavor,omitempty"`
+	KubernetesMachineFlavor   string            `json:"kubernetesMachineFlavor,omitempty"`
+	CreatedTime               time.Time         `json:"createdTime,omitempty"`
+	UpdatedTime               time.Time         `json:"updatedTime,omitempty"`
 }
 type ClusterRecordList struct {
 	Items []ClusterRecord
 }
 
 type InfraRecord struct {
-	Name                     string            `json:"name,omitempty"`
-	InfraType                string            `json:"infraType,omitempty"`
-	Labels                   map[string]string `json:"labels,omitempty"`
-	Provider                 string            `json:"provider,omitempty"`
-	ProvisionMethod          string            `json:"provisionMethod,omitempty"`
-	Namespace                string            `json:"namespace,omitempty"`
-	KubernetesVersion        string            `json:"kubernetesVersion,omitempty"`
-	ControlPlaneMachineCount string            `json:"controlPlaneMachineCount,omitempty"`
-	KubernetesMachineCount   string            `json:"kubernetesMachineCount,omitempty"`
-	CreatedTime              time.Time         `json:"createdTime,omitempty"`
-	UpdatedTime              time.Time         `json:"updatedTime,omitempty"`
+	Name                      string            `json:"name,omitempty"`
+	InfraType                 string            `json:"infraType,omitempty"`
+	Labels                    map[string]string `json:"labels,omitempty"`
+	Provider                  string            `json:"provider,omitempty"`
+	ProvisionMethod           string            `json:"provisionMethod,omitempty"`
+	Namespace                 string            `json:"namespace,omitempty"`
+	KubernetesVersion         string            `json:"kubernetesVersion,omitempty"`
+	ControlPlaneMachineCount  string            `json:"controlPlaneMachineCount,omitempty"`
+	KubernetesMachineCount    string            `json:"kubernetesMachineCount,omitempty"`
+	PodCIDR                   string            `json:"podCDIR,omitempty"`
+	CNILabel                  string            `json:"cniLabel,omitempty"`
+	ControlPlaneMachineFlavor string            `json:"controlPlaneMachineFlavor,omitempty"`
+	KubernetesMachineFlavor   string            `json:"kubernetesMachineFlavor,omitempty"`
+	CreatedTime               time.Time         `json:"createdTime,omitempty"`
+	UpdatedTime               time.Time         `json:"updatedTime,omitempty"`
 }
 type InfraRecordList struct {
 	Items []InfraRecord
@@ -255,7 +263,7 @@ func main() {
 	})
 	r.Get("/testSendPackage", func(w http.ResponseWriter, r *http.Request) {
 		config := ClusterRecord{
-			"default", "minimal", map[string]string{"none": "none"}, "default", "default", "default", "default", "v1.24.0", "1", "1", time.Now(), time.Now(),
+			"default", "minimal", map[string]string{"none": "none"}, "default", "default", "default", "default", "v1.24.0", "1", "1", "10.244.0.0", "flannel", "m1.medium", "m1.medium", time.Now(), time.Now(),
 		}
 		go sendRequestCreateNewCluster(config, providerApiServiceUrl)
 		w.Write([]byte(string("received")))
@@ -487,7 +495,7 @@ func mappingValueofClusterToClusterRecord(newCluster ClusterConfigurations, list
 	// KubernetesVersion        string            `json:"kubernetesVersion,omitempty"`
 	// ControlPlaneMachineCount string            `json:"controlPlaneMachineCount,omitempty"`
 	// KubernetesMachineCount   string            `json:"kubernetesMachineCount,omitempty"`
-	mappingInfraRecord := InfraRecord{"default", "minimal", map[string]string{"none": "none"}, "default", "default", "default", "v1.24.0", "1", "1", time.Now(), time.Now()}
+	mappingInfraRecord := InfraRecord{"default", "minimal", map[string]string{"none": "none"}, "default", "default", "default", "v1.23.8", "3", "3", "10.244.0.0", "flannel", "m1.medium", "m1.medium", time.Now(), time.Now()}
 	for _, infraItem := range listInfra.Items {
 		if newClusterRecord.InfraType == infraItem.Name {
 			mappingInfraRecord = infraItem
@@ -500,6 +508,10 @@ func mappingValueofClusterToClusterRecord(newCluster ClusterConfigurations, list
 	newClusterRecord.ControlPlaneMachineCount = mappingInfraRecord.ControlPlaneMachineCount
 	newClusterRecord.KubernetesMachineCount = mappingInfraRecord.KubernetesMachineCount
 	newClusterRecord.KubernetesVersion = mappingInfraRecord.KubernetesVersion
+	newClusterRecord.CNILabel = mappingInfraRecord.CNILabel
+	newClusterRecord.ControlPlaneMachineFlavor = mappingInfraRecord.ControlPlaneMachineFlavor
+	newClusterRecord.KubernetesMachineFlavor = mappingInfraRecord.KubernetesMachineFlavor
+	newClusterRecord.PodCIDR = mappingInfraRecord.PodCIDR
 	return newClusterRecord
 	// (*listClusterRecord).Items = append((*&listClusterRecord).Items, newClusterRecord)
 }
