@@ -495,7 +495,7 @@ func mappingValueofClusterToClusterRecord(newCluster ClusterConfigurations, list
 	// KubernetesVersion        string            `json:"kubernetesVersion,omitempty"`
 	// ControlPlaneMachineCount string            `json:"controlPlaneMachineCount,omitempty"`
 	// KubernetesMachineCount   string            `json:"kubernetesMachineCount,omitempty"`
-	mappingInfraRecord := InfraRecord{"default", "minimal", map[string]string{"none": "none"}, "default", "default", "default", "v1.23.8", "3", "3", "10.244.0.0", "flannel", "m1.medium", "m1.medium", time.Now(), time.Now()}
+	mappingInfraRecord := InfraRecord{"default", "minimal", map[string]string{"none": "none"}, "default", "default", "default", "v1.24.8", "3", "3", "10.244.0.0", "flannel", "m1.medium", "m1.medium", time.Now(), time.Now()}
 	for _, infraItem := range listInfra.Items {
 		if newClusterRecord.InfraType == infraItem.Name {
 			mappingInfraRecord = infraItem
