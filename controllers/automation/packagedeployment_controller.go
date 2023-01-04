@@ -100,24 +100,35 @@ type ClusterRecord struct {
 	Provider                 string            `json:"provider,omitempty"`
 	ProvisionMethod          string            `json:"provisionMethod,omitempty"`
 	Namespace                string            `json:"namespace,omitempty"`
-	KubernetesVersion        string            `json:"pubernetesVersion,omitempty"`
+	KubernetesVersion        string            `json:"kubernetesVersion,omitempty"`
 	ControlPlaneMachineCount string            `json:"controlPlaneMachineCount,omitempty"`
 	KubernetesMachineCount   string            `json:"kubernetesMachineCount,omitempty"`
+	// Pod CIDR K8s
+	PodCIDR string `json:"podCIDR,omitempty"`
+	// CNI of Kubernetes Cluster
+	CNILabel string `json:"cni,omitempty"`
+	// Control plane flavor
+	ControlPlaneMachineFlavor string `json:"controlPlaneMachineFlavor,omitempty"`
+	KubernetesMachineFlavor   string `json:"kubernetesMachineFlavor,omitempty"`
 }
 type ClusterRecordList struct {
 	Items []ClusterRecord
 }
 
 type InfraRecord struct {
-	Name                     string
-	InfraType                string
-	Labels                   map[string]string
-	Provider                 string
-	ProvisionMethod          string
-	Namespace                string
-	KubernetesVersion        string
-	ControlPlaneMachineCount string
-	KubernetesMachineCount   string
+	Name                      string
+	InfraType                 string
+	Labels                    map[string]string
+	Provider                  string
+	ProvisionMethod           string
+	Namespace                 string
+	KubernetesVersion         string
+	ControlPlaneMachineCount  string
+	KubernetesMachineCount    string
+	CNILabel                  string
+	ControlPlaneMachineFlavor string
+	PodCIDR                   string
+	KubernetesMachineFlavor   string
 }
 type InfraRecordList struct {
 	Items []InfraRecord
@@ -948,6 +959,10 @@ func (r *PackageDeploymentReconciler) appendtoInfraList(list *InfraRecordList, p
 	// objectMetaData := pd.TypeMeta
 	item.Provider = pd.Spec.Provider               //item.Labels["provider"]
 	item.ProvisionMethod = pd.Spec.ProvisionMethod //item.Labels["provisionMethod"]
+	item.CNILabel = pd.Spec.CNILabel
+	item.ControlPlaneMachineFlavor = pd.Spec.ControlPlaneMachineFlavor
+	item.KubernetesMachineFlavor = pd.Spec.KubernetesMachineFlavor
+	item.PodCIDR = pd.Spec.PodCIDR
 	// Append to List
 	(*list).Items = append((*list).Items, item)
 	r.l.Info("appendtoInfraList function", "ClusterRecord", item, "automationv1alpha1.PackageDeployment", pd)
