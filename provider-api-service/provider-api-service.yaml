@@ -157,6 +157,16 @@ data:
   openstack-cloud-cacert-b64: "Cg=="
   openstack-cloud-provider-conf-b64: "W0dk9uZSIK"
   openstack-cloud-yaml-b64: "Y2xvdWRzOgx0Cg=="
+  # Add these configurations
+#   [LoadBalancer]
+# use-octavia=true
+# # this is generally the public network on OpenStack
+# floating-network-id=PUBLIC_NETWORK_ID
+# # this should be private network subnet where vip is allocated for the ABM nodes
+# subnet-id=ABM_NETWORK_SUBNET_ID
+
+# [BlockStorage]
+# bs-version=v2
 ---
 apiVersion: v1
 kind: ConfigMap
