@@ -1,0 +1,12 @@
+apiVersion: automation.dcn.ssu.ac.kr/v1alpha1
+kind: VirtualMachineConfigurations
+metadata:
+  provider: openstack
+  name: m1-medium
+  type: Flavor
+  namespace: default
+spec:
+  cores: 4
+  memory: 4096
+  disk: 10240
+  

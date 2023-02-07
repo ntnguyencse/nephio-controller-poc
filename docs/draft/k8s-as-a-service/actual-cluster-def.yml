@@ -1,0 +1,48 @@
+apiVersion: automation.dcn.ssu.ac.kr/v1alpha1
+kind: ClusterDescription
+metadata:
+  name: cluster-sample
+  namespace: starlab
+  labels:
+    automation.dcn.ssu.ac.kr/region: kr-seoul
+spec:
+  infrastructure:
+    spec:
+      provider: openstack
+        blueprint: openstack-small-cluster
+          type: ClusterTemplate
+          revision: 1.0.0
+        spec:
+          namespace: default
+          kubernetesVersion: v1.24.8
+          controlPlaneMachineCount: 1
+          workerMachineCount: 3
+          controlplaneFlavor: m1.medium
+          workerFlavor: m1.large  
+          clusterapitemplate: 
+            filename: cluster-template.yaml
+            url: https://github.com/kubernetes-sigs/cluster-api-provider-openstack/release
+            version: v0.7.0
+      cni: flannel
+        blueprint: flannel-default
+          type: CNITemplate
+          revision: 1.0.0
+        spec:
+          cni: flannel
+          version: 0.20.0
+          podCIDR: ["10.96.0.0/12"]
+          serviceCIDR: ["192.168.0.0/16"]
+  software:
+    - prometheus:
+        blueprint: prometheus-default
+          type: ApplicationTemplate
+          revison: 1.0.0
+        spec:
+          version: 2.41.0
+          volumeMounts:
+            - name: config
+          volumes:
+            - name: config
+              configMap: 
+                name: prometheus-config
+###############################

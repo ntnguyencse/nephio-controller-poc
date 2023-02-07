@@ -1,0 +1,17 @@
+apiVersion: automation.dcn.ssu.ac.kr/v1alpha1
+kind: VirtualMachineConfigurations
+metadata:
+  provider: openstack
+  name: volumes-attached
+  type: Volume
+  namespace: default
+spec:
+  name: mysql-app-01
+  size: 20480
+  type: lvmdriver-1
+  bootable: false
+  encrypted: false
+  avalabilityZone: nova
+  
+
+  

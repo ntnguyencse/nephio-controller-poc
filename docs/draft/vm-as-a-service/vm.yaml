@@ -1,0 +1,19 @@
+apiVersion: automation.dcn.ssu.ac.kr/v1alpha1
+kind: VirtualCluster
+metadata:
+  instanceName: vm-01
+  namespace: starlab
+  tenant: starlab
+  labels:
+    application: srv6
+    availabilityZone: compute
+spec:
+  flavor:
+    name: m1-medium
+    type: Flavor
+  networkinterface:
+    name: network-01
+    type: NetworkInterfaces
+  keypair:
+    name: keypair-admin
+    type: KeyPair

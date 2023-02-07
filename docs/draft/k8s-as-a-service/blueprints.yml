@@ -1,0 +1,63 @@
+apiVersion: automation.dcn.ssu.ac.kr/v1alpha1
+kind: BluePrint
+metadata:
+  provider: openstack
+  name: openstack-small-cluster
+  kind: Infrastructure
+  type: ClusterTemplate
+  namespace: default
+spec:
+  blueprint: 
+    name: clusterapi-resource-template-default
+    type: ClusterAPITemplate
+    revision: 1.0.0
+  kubernetesVersion: v1.24.8
+  controlPlaneMachineCount: 1
+  workerMachineCount: 3
+  controlplaneFlavor: m1.medium
+  workerFlavor: m1.large
+--
+apiVersion: automation.dcn.ssu.ac.kr/v1alpha1
+kind: BluePrint
+metadata:
+  name: clusterapi-resource-template-default
+  kind: Infrastructure
+  type: ClusterAPITemplate
+  namespace: default
+  revision: 1.0.0
+spec:
+  filename: cluster-template.yaml
+  url: https://github.com/kubernetes-sigs/cluster-api-provider-openstack/release
+  version: v0.7.0
+--
+apiVersion: automation.dcn.ssu.ac.kr/v1alpha1
+kind: BluePrint
+metadata:
+  name: flannel-default
+  kind: Infrastructure
+  type: CNITemplate
+  namespace: default
+  revision: 1.0.0
+spec:
+  cni: flannel
+  version: 0.20.0
+  podCIDR: ["10.96.0.0/12"]
+  serviceCIDR: ["192.168.0.0/16"]
+--
+apiVersion: automation.dcn.ssu.ac.kr/v1alpha1
+kind: BluePrint
+metadata:
+  name: prometheus-default
+  kind: software
+  type: prometheus
+  namespace: default
+  revision: 1.0.0
+spec:
+  helm: prometheus-v2.41.0
+  version: 2.41.0
+  volumeMounts:
+    - name: config
+  volumes:
+    - name: config
+      configMap: 
+        name: prometheus-config

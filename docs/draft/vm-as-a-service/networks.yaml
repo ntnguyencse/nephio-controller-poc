@@ -1,0 +1,19 @@
+
+apiVersion: automation.dcn.ssu.ac.kr/v1alpha1
+kind: VirtualMachineConfigurations
+metadata:
+  provider: openstack
+  name: public
+  type: Network
+  namespace: default
+spec:
+  name: public
+  networkType: flat
+  mtuSize: 1500
+  dnsName: [8.8.8.8, 8.8.4.4]
+  gatewayIP: 192.168.40.1
+  subnet: 192.168.40.0/24
+  shared: yes
+  external: yes
+  availabilityZone: none
+

@@ -1,0 +1,14 @@
+apiVersion: automation.dcn.ssu.ac.kr/v1alpha1
+kind: VirtualMachineConfigurations
+metadata:
+  provider: openstack
+  name: network-01
+  type: NetworkInterfaces
+  namespace: default
+spec:
+  interface:
+    eno1:
+      capacity: 1Gbps
+      attachedTo: public-network
+      ipType: dhcp
+      securityGroup: security-group-default

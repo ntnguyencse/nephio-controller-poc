@@ -1,0 +1,12 @@
+apiVersion: automation.dcn.ssu.ac.kr/v1alpha1
+kind: VirtualMachineConfigurations
+metadata:
+  provider: openstack
+  name: keypair-admin
+  type: KeyPair
+  namespace: default
+spec:
+  name: admin
+  data:
+    configMap: 
+        name: admin-public-key

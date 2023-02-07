@@ -1,0 +1,31 @@
+apiVersion: automation.dcn.ssu.ac.kr/v1alpha1
+kind: Cluster
+metadata:
+  name: cluster-sample
+  namespace: starlab
+  tenant: starlab
+  labels:
+    automation.dcn.ssu.ac.kr/region: kr-seoul
+    automation.dcn.ssu.ac.kr/zone: public
+spec:
+  infrastructure:
+    spec:
+      provider: 
+        name: openstack
+        blueprint: 
+          name: openstack-small-cluster@1.0.1
+          type: ClusterTemplate
+          revision: 1.0.0
+        override:
+          kubernetesVersion: v1.25.0
+      cni:
+        name: flannel
+        blueprint: 
+          name: flannel-default
+          type: CNITemplate
+          revision: 1.0.0
+  software:
+    - name: prometheus
+      blueprint: prometheus-default
+        type: ApplicationTemplate
+        revison: 1.0.0
